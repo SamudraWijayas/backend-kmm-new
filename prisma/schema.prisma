@@ -1,0 +1,325 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  fullName String
+  username String  @unique
+  password String
+  avatar   String?
+  role     Role    @default(SUPERADMIN)
+
+  daerahId   String?
+  desaId     String?
+  kelompokId String?
+
+  daerah   Daerah?   @relation(fields: [daerahId], references: [id])
+  desa     Desa?     @relation(fields: [desaId], references: [id])
+  kelompok Kelompok? @relation(fields: [kelompokId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  DAERAH
+  SUBDAERAH
+  DESA
+  SUBDESA
+  KELOMPOK
+  SUBKELOMPOK
+}
+
+model Daerah {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  desa      Desa[]
+  kelompok  Kelompok[]
+  users     User[]
+  mumi       Mumi[]
+  caberawit  Caberawit[]
+  kegiatan  Kegiatan[] // 🔥 relasi balik dari Kegiatan.daerah
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Desa {
+  id        String     @id @default(cuid())
+  name      String
+  daerahId  String
+  daerah    Daerah     @relation(fields: [daerahId], references: [id])
+  kelompok  Kelompok[]
+  users     User[]
+  mumi       Mumi[]
+  caberawit  Caberawit[]
+  kegiatan  Kegiatan[] // 🔥 relasi balik dari Kegiatan.desa
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Kelompok {
+  id        String     @id @default(cuid())
+  name      String
+  desaId    String
+  daerahId  String
+  desa      Desa       @relation(fields: [desaId], references: [id])
+  daerah    Daerah     @relation(fields: [daerahId], references: [id])
+  users     User[]
+  mumi       Mumi[]
+  caberawit  Caberawit[]
+  kegiatan  Kegiatan[] // 🔥 relasi balik dari Kegiatan.kelompok
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Kegiatan {
+  id         String   @id @default(cuid())
+  name       String
+  startDate  DateTime
+  endDate    DateTime
+  tingkat    Tingkat
+  daerahId   String?
+  desaId     String?
+  kelompokId String?
+
+  daerah   Daerah?   @relation(fields: [daerahId], references: [id])
+  desa     Desa?     @relation(fields: [desaId], references: [id])
+  kelompok Kelompok? @relation(fields: [kelompokId], references: [id])
+
+  sasaran KegiatanSasaran[]
+  absen   AbsenGenerus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KegiatanSasaran {
+  id         Int    @id @default(autoincrement())
+  kegiatanId String
+  jenjangId  String
+
+  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id])
+  jenjang  Jenjang  @relation(fields: [jenjangId], references: [id])
+}
+
+
+
+enum Tingkat {
+  DAERAH
+  DESA
+  KELOMPOK
+}
+
+model Mumi {
+  id            Int      @id @default(autoincrement())
+  nama          String
+  jenjangId     String
+  jenjang       Jenjang  @relation(fields: [jenjangId], references: [id])
+  kelasJenjangId String?
+  kelasJenjang  KelasJenjang? @relation(fields: [kelasJenjangId], references: [id])
+  tgl_lahir     DateTime
+  jenis_kelamin String
+  gol_darah     String
+  nama_ortu     String
+  mahasiswa     Boolean
+  foto          String?
+
+  kelompokId String
+  desaId     String
+  daerahId   String
+
+  kelompok Kelompok       @relation(fields: [kelompokId], references: [id])
+  desa     Desa           @relation(fields: [desaId], references: [id])
+  daerah   Daerah         @relation(fields: [daerahId], references: [id])
+  absensi  AbsenGenerus[] // 🔥 relasi balik dari AbsenGenerus.generus
+  rapor         RaporGenerus[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Caberawit {
+  id            Int      @id @default(autoincrement())
+  nama          String
+  jenjangId     String
+  jenjang       Jenjang  @relation(fields: [jenjangId], references: [id])
+  kelasJenjangId String?
+  kelasJenjang  KelasJenjang? @relation(fields: [kelasJenjangId], references: [id])
+  tgl_lahir     DateTime
+  jenis_kelamin String
+  gol_darah     String
+  nama_ortu     String
+  foto          String?
+
+  kelompokId String
+  desaId     String
+  daerahId   String
+
+  kelompok Kelompok       @relation(fields: [kelompokId], references: [id])
+  desa     Desa           @relation(fields: [desaId], references: [id])
+  daerah   Daerah         @relation(fields: [daerahId], references: [id])
+  rapor         RaporGenerus[]
+  absensi AbsenCaberawit[] // relasi balik dari AbsenCaberawit.caberawit
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AbsenGenerus {
+  id         String        @id @default(cuid())
+  kegiatanId String
+  mumiId  Int
+  status     StatusAbsensi @default(TIDAK_HADIR)
+  waktuAbsen DateTime?
+
+  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id])
+  mumi  Mumi       @relation(fields: [mumiId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+enum StatusAbsensi {
+  HADIR
+  TIDAK_HADIR
+  TERLAMBAT
+}
+
+model AbsenCaberawit {
+  id           String   @id @default(cuid())
+  caberawitId  Int
+  bulan        Int      // 1 = Januari, 2 = Februari, dst.
+  tahun        Int
+  jumlahHadir  Int      // berapa kali hadir
+  totalPertemuan Int?   // total kegiatan dalam bulan itu
+
+  caberawit    Caberawit @relation(fields: [caberawitId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Jenjang {
+  id         String            @id @default(cuid())
+  name       String            @unique
+  kelas      KelasJenjang[]
+  mumi       Mumi[]
+  caberawit  Caberawit[]
+  sasaran    KegiatanSasaran[]
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+model KelasJenjang {
+  id         String   @id @default(cuid())
+  jenjangId  String
+  name       String   // misal: "Kelas 1", "Kelas 2", "Kelas 3", atau "Pra Nikah"
+  urutan     Int?     // urutan 1–12 untuk sorting
+
+  jenjang    Jenjang  @relation(fields: [jenjangId], references: [id])
+  indikator  IndikatorKelas[] // relasi ke indikator per kelas
+  rapor      RaporGenerus[]   // nilai generus di kelas ini
+  mumi       Mumi[]
+  caberawit  Caberawit[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum Semester {
+  GANJIL
+  GENAP
+}
+
+enum JenisPenilaian {
+  PENGETAHUAN
+  KETERAMPILAN
+  KEDUANYA
+}
+
+model MataPelajaran {
+  id          String           @id @default(cuid())
+  name        String           @unique        // misal: "Alim Faqih", "Akhlaqul Karimah"
+  kategori  KategoriIndikator[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+model KategoriIndikator {
+  id              String          @id @default(cuid())
+  mataPelajaranId String
+  name            String          // misal: "Akhlaq", "Adab"
+  indikator       IndikatorKelas[]
+
+  mataPelajaran   MataPelajaran   @relation(fields: [mataPelajaranId], references: [id])
+}
+
+
+model IndikatorKelas {
+  id                String         @id @default(cuid())
+  kelasJenjangId    String
+  kategoriIndikatorId String       // relasi ke kategori
+  indikator         String         // misal: "Akhlaq Pribadi", "Adab Mandi"
+  semester          Semester
+  jenisPenilaian    JenisPenilaian @default(PENGETAHUAN)
+
+  kelasJenjang      KelasJenjang      @relation(fields: [kelasJenjangId], references: [id])
+  kategoriIndikator KategoriIndikator @relation(fields: [kategoriIndikatorId], references: [id])
+  rapor             RaporGenerus[]
+}
+
+
+
+enum StatusRapor {
+  TUNTAS
+  TIDAK_TUNTAS
+}
+
+model TahunAjaran {
+  id      String         @id @default(cuid())
+  name    String         // misal "2024/2025"
+  rapor   RaporGenerus[]
+}
+
+model RaporGenerus {
+  id                String       @id @default(cuid())
+  mumiId            Int?
+  caberawitId       Int?
+  indikatorKelasId  String
+  kelasJenjangId    String
+  status            StatusRapor
+  tahunAjaranId     String
+  semester          Semester
+
+  // Nilai untuk pengetahuan dan keterampilan
+  nilaiPengetahuan  Int? 
+  nilaiKeterampilan Int? 
+
+  kelasJenjang      KelasJenjang @relation(fields: [kelasJenjangId], references: [id])
+  mumi              Mumi?        @relation(fields: [mumiId], references: [id])
+  caberawit         Caberawit?   @relation(fields: [caberawitId], references: [id])
+  indikatorKelas    IndikatorKelas @relation(fields: [indikatorKelasId], references: [id])
+  tahunAjaran       TahunAjaran  @relation(fields: [tahunAjaranId], references: [id])
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+
