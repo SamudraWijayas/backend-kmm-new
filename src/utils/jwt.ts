@@ -12,12 +12,33 @@ export interface IUserToken {
 
 // ===== GENERATE TOKEN =====
 export const generateToken = (user: IUserToken): string => {
-  return jwt.sign(user, SECRET, {
-    expiresIn: "1d",
+  const token = jwt.sign(user, SECRET, {
+    expiresIn: "7d",
   });
+  return token;
 };
 
 // ===== GET USER DATA =====
 export const getUserData = (token: string): IUserToken => {
   return jwt.verify(token, SECRET) as IUserToken;
+};
+
+export interface IMumiToken {
+  id: number;
+  nama: string;
+  kelompokId: string;
+  desaId: string;
+  daerahId: string;
+  jenjangId: string;
+}
+
+export const generateMumiToken = (user: IMumiToken): string => {
+  const token = jwt.sign(user, SECRET, {
+    expiresIn: "7d",
+  });
+  return token;
+};
+
+export const getMumiData = (token: string): IMumiToken => {
+  return jwt.verify(token, SECRET) as IMumiToken;
 };

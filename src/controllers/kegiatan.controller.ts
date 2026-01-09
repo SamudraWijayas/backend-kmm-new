@@ -1,7 +1,7 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
-import { IReqUser } from "../utils/interfaces";
+import { IReqMumi, IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";
 
 // ✅ Validasi input
@@ -205,7 +205,7 @@ export default {
         const absen = absensi.find((a) => a.mumiId === m.id);
         return {
           ...m,
-          status: absen ? absen.status : "BELUM HADIR",
+          status: absen ? absen.status : "TIDAK_HADIR",
           waktuAbsen: absen ? absen.waktuAbsen : null,
         };
       });
@@ -300,9 +300,9 @@ export default {
     const { id } = req.params;
 
     try {
-      await prisma.kegiatanSasaran.deleteMany({
-        where: { kegiatanId: String(id) },
-      });
+      // await prisma.kegiatanSasaran.deleteMany({
+      //   where: { kegiatanId: String(id) },
+      // });
 
       await prisma.kegiatan.delete({
         where: { id: String(id) },
@@ -311,6 +311,118 @@ export default {
       response.success(res, null, "✅ Kegiatan berhasil dihapus");
     } catch (error) {
       response.error(res, error, "❌ Gagal menghapus kegiatan");
+    }
+  },
+
+  // login generus
+
+  async findByDaerah(req: IReqMumi, res: Response) {
+    try {
+      const daerahId = req.user?.daerahId;
+      const userJenjangId = req.user?.jenjangId;
+      const { tanggal } = req.query; // ambil dari query params, misal ?tanggal=2025-12-24T00:31:00.000Z
+
+      if (!daerahId) {
+        return response.notFound(res, "User tidak memiliki daerah terkait");
+      }
+      if (!userJenjangId) {
+        return response.notFound(res, "User tidak memiliki jenjang terkait");
+      }
+
+      const whereClause: any = {
+        daerahId: daerahId,
+        sasaran: {
+          some: {
+            jenjangId: userJenjangId,
+          },
+        },
+      };
+
+      if (tanggal) {
+        const tgl = new Date(tanggal as string);
+        const startOfDay = new Date(tgl);
+        startOfDay.setHours(0, 0, 0, 0); // 00:00:00
+        const endOfDay = new Date(tgl);
+        endOfDay.setHours(23, 59, 59, 999); // 23:59:59
+
+        whereClause.startDate = { gte: startOfDay, lte: endOfDay }; // ambil semua kegiatan di tanggal itu
+      }
+
+      const kegiatanList = await prisma.kegiatan.findMany({
+        where: whereClause,
+        include: {
+          daerah: { select: { id: true, name: true } },
+          desa: { select: { id: true, name: true } },
+          kelompok: { select: { id: true, name: true } },
+        },
+        orderBy: {
+          startDate: "desc",
+        },
+      });
+
+      response.success(
+        res,
+        kegiatanList,
+        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user"
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil kegiatan desa");
+    }
+  },
+  async findByDesa(req: IReqMumi, res: Response) {
+    try {
+      const desaId = req.user?.desaId;
+      const userJenjangId = req.user?.jenjangId;
+      const { tanggal } = req.query; // misal ?tanggal=2025-12-24T00:31:00.000Z
+
+      if (!desaId) {
+        return response.notFound(res, "User tidak memiliki desa terkait");
+      }
+      if (!userJenjangId) {
+        return response.notFound(res, "User tidak memiliki jenjang terkait");
+      }
+
+      const whereClause: any = {
+        desaId: desaId,
+        sasaran: {
+          some: {
+            jenjangId: userJenjangId,
+          },
+        },
+      };
+
+      if (tanggal) {
+        const tgl = new Date(tanggal as string);
+        const startOfDay = new Date(tgl);
+        startOfDay.setHours(0, 0, 0, 0); // 00:00:00
+        const endOfDay = new Date(tgl);
+        endOfDay.setHours(23, 59, 59, 999); // 23:59:59
+
+        whereClause.startDate = { gte: startOfDay, lte: endOfDay }; // ambil semua kegiatan di tanggal itu
+      }
+
+      const kegiatanList = await prisma.kegiatan.findMany({
+        where: whereClause,
+        include: {
+          daerah: { select: { id: true, name: true } },
+          desa: { select: { id: true, name: true } },
+          kelompok: { select: { id: true, name: true } },
+          sasaran: {
+            include: {
+              jenjang: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      response.success(
+        res,
+        kegiatanList,
+        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user"
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil kegiatan desa");
     }
   },
 };

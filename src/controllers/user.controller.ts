@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import { IPaginationQuery, IReqUser } from "../utils/interfaces";
 import { userAddDTO } from "../models/user.model";
 import response from "../utils/response";

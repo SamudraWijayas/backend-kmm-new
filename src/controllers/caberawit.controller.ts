@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";
@@ -107,6 +107,9 @@ export default {
         minUsia,
         maxUsia,
         jenjang,
+        daerah,
+        desa,
+        kelompok
       } = req.query;
 
       const where: any = {};
@@ -124,6 +127,16 @@ export default {
       // filter jenjang
       if (jenjang) {
         where.jenjangId = jenjang;
+      }
+
+      if (daerah){
+        where.daerahId = daerah
+      }
+      if (desa){
+        where.desaId = desa
+      }
+      if (kelompok){
+        where.kelompokId = kelompok
       }
 
       // 🎂 Filter usia (dihitung dari tgl_lahir)
@@ -151,11 +164,11 @@ export default {
         if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
         if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
       }
-      console.log("Filter usia:", {
-        minUsia,
-        maxUsia,
-        where_tgl_lahir: where.tgl_lahir,
-      });
+      // console.log("Filter usia:", {
+      //   minUsia,
+      //   maxUsia,
+      //   where_tgl_lahir: where.tgl_lahir,
+      // });
 
       // 📦 Ambil data dari Prisma
       const list = await prisma.caberawit.findMany({
@@ -180,6 +193,182 @@ export default {
           current: +page,
           total,
           totalPages: Math.ceil(total / +limit),
+        },
+        "✅ Berhasil mengambil daftar Caberawit"
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
+    }
+  },
+  async findAllByKelompok(req: IReqUser, res: Response) {
+    try {
+      const { kelompokId } = req.params;
+
+      const {
+        limit = 10,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        jenjang,
+      } = req.query;
+
+      // ✅ Filter utama: kelompok
+      const where: any = {
+        kelompokId: String(kelompokId),
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Filter jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Filter jenjang
+      if (jenjang) {
+        where.jenjangId = String(jenjang);
+      }
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+
+        let tanggalLahirMin: Date | undefined;
+        let tanggalLahirMax: Date | undefined;
+
+        if (maxUsia) {
+          tanggalLahirMin = new Date(today);
+          tanggalLahirMin.setFullYear(today.getFullYear() - Number(maxUsia));
+        }
+
+        if (minUsia) {
+          tanggalLahirMax = new Date(today);
+          tanggalLahirMax.setFullYear(today.getFullYear() - Number(minUsia));
+        }
+
+        where.tgl_lahir = {};
+        if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
+        if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
+      }
+
+      const list = await prisma.caberawit.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.caberawit.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar Caberawit"
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
+    }
+  },
+  async findAllByDesa(req: IReqUser, res: Response) {
+    try {
+      const { desaId } = req.params;
+
+      const {
+        limit = 10,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        jenjang,
+      } = req.query;
+
+      // ✅ Filter utama: DESA
+      const where: any = {
+        desaId: String(desaId),
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Filter jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Filter jenjang
+      if (jenjang) {
+        where.jenjangId = String(jenjang);
+      }
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+
+        let tanggalLahirMin: Date | undefined;
+        let tanggalLahirMax: Date | undefined;
+
+        if (maxUsia) {
+          tanggalLahirMin = new Date(today);
+          tanggalLahirMin.setFullYear(today.getFullYear() - Number(maxUsia));
+        }
+
+        if (minUsia) {
+          tanggalLahirMax = new Date(today);
+          tanggalLahirMax.setFullYear(today.getFullYear() - Number(minUsia));
+        }
+
+        where.tgl_lahir = {};
+        if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
+        if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
+      }
+
+      const list = await prisma.caberawit.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.caberawit.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
         },
         "✅ Berhasil mengambil daftar Caberawit"
       );

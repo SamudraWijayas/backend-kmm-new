@@ -113,8 +113,8 @@ model KegiatanSasaran {
   kegiatanId String
   jenjangId  String
 
-  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id])
-  jenjang  Jenjang  @relation(fields: [jenjangId], references: [id])
+  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
+  jenjang  Jenjang  @relation(fields: [jenjangId], references: [id], onDelete: Cascade)
 }
 
 
@@ -128,6 +128,7 @@ enum Tingkat {
 model Mumi {
   id            Int      @id @default(autoincrement())
   nama          String
+  password      String? 
   jenjangId     String
   jenjang       Jenjang  @relation(fields: [jenjangId], references: [id])
   kelasJenjangId String?
@@ -188,7 +189,7 @@ model AbsenGenerus {
   status     StatusAbsensi @default(TIDAK_HADIR)
   waktuAbsen DateTime?
 
-  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id])
+  kegiatan Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
   mumi  Mumi       @relation(fields: [mumiId], references: [id])
 
   createdAt DateTime @default(now())
@@ -202,19 +203,29 @@ enum StatusAbsensi {
   TERLAMBAT
 }
 
-model AbsenCaberawit {
-  id           String   @id @default(cuid())
-  caberawitId  Int
-  bulan        Int      // 1 = Januari, 2 = Februari, dst.
-  tahun        Int
-  jumlahHadir  Int      // berapa kali hadir
-  totalPertemuan Int?   // total kegiatan dalam bulan itu
-
-  caberawit    Caberawit @relation(fields: [caberawitId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum StatusAbsensiCaberawit {
+  HADIR
+  IZIN
+  SAKIT
+  ALPA
 }
+
+
+model AbsenCaberawit {
+  id          String   @id @default(cuid())
+  caberawitId Int
+  tanggal     DateTime
+  status      StatusAbsensiCaberawit @default(ALPA)
+
+  caberawit   Caberawit @relation(fields: [caberawitId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([caberawitId, tanggal], name: "caberawit_tanggal_unique")
+}
+
+
 
 
 model Jenjang {
@@ -321,5 +332,6 @@ model RaporGenerus {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
 
 

@@ -1,6 +1,6 @@
 import express from "express";
 import router from "./routes/api";
-import { prisma, connect } from "./utils/prisma"; // Prisma client
+import { prisma, connect } from "./libs/prisma"; // Prisma client
 import bodyParser from "body-parser";
 import cors from "cors";
 import path from "path";

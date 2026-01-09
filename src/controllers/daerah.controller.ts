@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";

@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";
@@ -249,6 +249,56 @@ export default {
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal menghitung jumlah kelompok");
+    }
+  },
+  // 🔍 Ambil kelompok berdasarkan desaId
+  async findByDesa(req: IReqUser, res: Response) {
+    try {
+      const { desaId } = req.params;
+
+      // validasi desa
+      const desa = await prisma.desa.findUnique({
+        where: { id: String(desaId) },
+      });
+
+      if (!desa) {
+        return response.notFound(res, "Desa tidak ditemukan");
+      }
+
+      const kelompokList = await prisma.kelompok.findMany({
+        where: {
+          desaId: String(desaId),
+        },
+        include: {
+          daerah: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          desa: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      return response.success(
+        res,
+        kelompokList,
+        `✅ Daftar kelompok berdasarkan desa ${desa.name}`
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil kelompok berdasarkan desa"
+      );
     }
   },
 };

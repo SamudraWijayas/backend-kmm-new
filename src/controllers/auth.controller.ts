@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { encrypt } from "../utils/encryption";
 import { generateToken } from "../utils/jwt";
@@ -65,7 +65,33 @@ export default {
       response.error(res, error, "Login failed");
     }
   },
+  async updateProfile(req: IReqUser, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const { fullName, avatar } = req.body;
 
+      if (!userId) {
+        return response.unauthorized(res, "Unauthorized");
+      }
+
+      const result = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          fullName,
+          avatar,
+        },
+      });
+
+      response.success(res, result, "success to update profile");
+    } catch (error: any) {
+      // prisma error: record not found
+      if (error.code === "P2025") {
+        return response.notFound(res, "user not found");
+      }
+
+      response.error(res, error, "failed to update profile");
+    }
+  },
   async updatePassword(req: IReqUser, res: Response) {
     try {
       const userId = req.user?.id;

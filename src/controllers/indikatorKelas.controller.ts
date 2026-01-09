@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 
 export default {
@@ -57,7 +57,7 @@ export default {
         include: {
           rapor: true,
           kategoriIndikator: { include: { mataPelajaran: true } },
-          kelasJenjang: {include: {jenjang: true}},
+          kelasJenjang: { include: { jenjang: true } },
         },
       });
 

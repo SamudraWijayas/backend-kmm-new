@@ -1,11 +1,10 @@
 import { Response } from "express";
-import { prisma } from "../utils/prisma";
+import { prisma } from "../libs/prisma";
 import response from "../utils/response";
-import { IReqUser } from "../utils/interfaces";
+import { IReqMumi, IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";
 
 const absenDTO = Yup.object({
-  generusId: Yup.number().required("ID generus wajib diisi"),
   kegiatanId: Yup.string().required("ID kegiatan wajib diisi"),
   manualStatus: Yup.string()
     .oneOf(["HADIR", "TIDAK_HADIR", "TERLAMBAT"])
@@ -14,13 +13,17 @@ const absenDTO = Yup.object({
 
 export default {
   // ✅ Absen dengan barcode
-  async absen(req: IReqUser, res: Response) {
-    const { kegiatanId, mumiId, manualStatus } = req.body;
+  async absen(req: IReqMumi, res: Response) {
+    const { kegiatanId, manualStatus } = req.body;
+    const mumiId = req.user?.id;
+
+    if (!mumiId) {
+      return response.unauthorized(res, "User MUMI tidak valid");
+    }
 
     try {
       await absenDTO.validate({ kegiatanId, mumiId, manualStatus });
 
-      // Ambil kegiatan untuk lihat jam mulai
       const kegiatan = await prisma.kegiatan.findUnique({
         where: { id: kegiatanId },
       });
@@ -29,55 +32,47 @@ export default {
         return response.notFound(res, "Kegiatan tidak ditemukan");
       }
 
-      const waktuSekarang = new Date();
-      const waktuMulai = new Date(kegiatan.startDate);
-      const toleransiMenit = 15; // ⏱️ bisa kamu ubah sesuai kebijakan
-      const batasTerlambat = new Date(
-        waktuMulai.getTime() + toleransiMenit * 60000
-      );
-
-      let statusFinal = manualStatus;
-
-      // Jika status tidak ditentukan manual → hitung otomatis
-      if (!manualStatus) {
-        if (waktuSekarang <= batasTerlambat) {
-          statusFinal = "HADIR";
-        } else {
-          statusFinal = "TERLAMBAT";
-        }
-      }
-
       const existing = await prisma.absenGenerus.findFirst({
         where: { kegiatanId, mumiId },
       });
 
-      let absen;
       if (existing) {
-        absen = await prisma.absenGenerus.update({
-          where: { id: existing.id },
-          data: { status: statusFinal, waktuAbsen: waktuSekarang },
-        });
-      } else {
-        absen = await prisma.absenGenerus.create({
-          data: {
-            kegiatanId,
-            mumiId,
-            status: statusFinal,
-            waktuAbsen: waktuSekarang,
-          },
-        });
+        return response.notFound(
+          res,
+          `Kamu sudah melakukan absen`
+        );
       }
+
+      const now = new Date();
+      const start = new Date(kegiatan.startDate);
+
+      const toleransiMenit = 15;
+      const batasTerlambat = new Date(start.getTime() + toleransiMenit * 60000);
+
+      let statusFinal = manualStatus;
+
+      if (!manualStatus) {
+        statusFinal = now <= batasTerlambat ? "HADIR" : "TERLAMBAT";
+      }
+
+      const absen = await prisma.absenGenerus.create({
+        data: {
+          kegiatanId,
+          mumiId,
+          status: statusFinal,
+          waktuAbsen: now,
+        },
+      });
 
       response.success(
         res,
         absen,
-        `✅ Absensi berhasil — status: ${statusFinal}`
+        `Absensi kamu berhasil! Status kehadiran: ${statusFinal}`
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal menyimpan absensi");
     }
   },
-
   // ✅ Daftar absen per kegiatan
   async findByKegiatan(req: IReqUser, res: Response) {
     const { kegiatanId } = req.params;

@@ -14,6 +14,19 @@ export interface IReqUser extends Request {
   user?: IUserToken;
 }
 
+export interface IMumiToken {
+  id: number;
+  nama: string;
+  kelompokId: string;
+  desaId: string;
+  daerahId: string;
+  jenjangId: string;
+}
+
+export interface IReqMumi extends Request {
+  user?: IMumiToken;
+}
+
 export interface IPaginationQuery {
   page: number;
   limit: number;
