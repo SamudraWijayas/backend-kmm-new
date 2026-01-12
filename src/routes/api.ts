@@ -23,6 +23,7 @@ import taController from "../controllers/tahunajaran.controller";
 import mapelController from "../controllers/mapel.controler";
 import kategoriController from "../controllers/kategoriIndikator.controler";
 import absenCaberawitController from "../controllers/absenCaberawit.controller";
+import catatanWaliKelasController from "../controllers/catatanWaliKelas.controller";
 import authGenerusController from "../controllers/authGenerus";
 
 const router = express.Router();
@@ -539,7 +540,7 @@ router.get(
 router.get(
   "/rapor/caberawit/:caberawitId",
   authMiddleware,
-  raporController.getRaporLengkapByCaberawit
+  raporController.getRaporByCaberawitId
 );
 
 router.post("/rapor", authMiddleware, raporController.createRapor);
@@ -617,5 +618,19 @@ router.get(
   kegiatanController.findByDaerah
 );
 router.post("/absen-generus/scan", authGenerus, absenController.absen);
+
+// catatan wali kelas
+router.post("/catatan-wali", authMiddleware, catatanWaliKelasController.upsert);
+router.get(
+  "/catatan-wali/caberawit/:caberawitId",
+  authMiddleware,
+  catatanWaliKelasController.get
+);
+
+router.delete(
+  "/catatan-wali/:id",
+  authMiddleware,
+  catatanWaliKelasController.remove
+);
 
 export default router;

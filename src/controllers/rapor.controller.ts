@@ -164,6 +164,55 @@ export default {
     }
   },
 
+  async getRaporByCaberawitId(req: Request, res: Response) {
+    try {
+      const { caberawitId } = req.params;
+      const { tahunAjaranId, semester } = req.query;
+
+      if (!caberawitId) {
+        return response.errors(res, null, "caberawitId wajib diisi", 400);
+      }
+
+      const rapor = await prisma.raporGenerus.findMany({
+        where: {
+          caberawitId: Number(caberawitId),
+          ...(tahunAjaranId ? { tahunAjaranId: String(tahunAjaranId) } : {}),
+          ...(semester ? { semester: semester as Semester } : {}),
+        },
+        include: {
+          kelasJenjang: true,
+          tahunAjaran: true,
+          indikatorKelas: {
+            include: {
+              kategoriIndikator: {
+                include: {
+                  mataPelajaran: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          indikatorKelas: {
+            kategoriIndikator: {
+              mataPelajaran: {
+                name: "asc",
+              },
+            },
+          },
+        },
+      });
+
+      if (!rapor.length) {
+        return response.success(res, [], "Rapor caberawit belum tersedia");
+      }
+
+      return response.success(res, rapor, "Berhasil mengambil rapor caberawit");
+    } catch (error) {
+      return response.error(res, error, "Gagal mengambil rapor caberawit");
+    }
+  },
+
   // GET rapor lengkap merge indikator (Caberawit)
   async getRaporLengkapByCaberawit(req: Request, res: Response) {
     try {

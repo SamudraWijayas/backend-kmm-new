@@ -29,6 +29,7 @@ model User {
   daerah   Daerah?   @relation(fields: [daerahId], references: [id])
   desa     Desa?     @relation(fields: [desaId], references: [id])
   kelompok Kelompok? @relation(fields: [kelompokId], references: [id])
+  waliCaberawit Caberawit[] @relation("WaliCaberawit")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -171,6 +172,10 @@ model Caberawit {
   desaId     String
   daerahId   String
 
+  waliId Int?
+  wali   User? @relation("WaliCaberawit", fields: [waliId], references: [id])
+  catatanWali CatatanWaliKelas[]
+
   kelompok Kelompok       @relation(fields: [kelompokId], references: [id])
   desa     Desa           @relation(fields: [desaId], references: [id])
   daerah   Daerah         @relation(fields: [daerahId], references: [id])
@@ -307,6 +312,7 @@ model TahunAjaran {
   id      String         @id @default(cuid())
   name    String         // misal "2024/2025"
   rapor   RaporGenerus[]
+  catatanWali CatatanWaliKelas[]
 }
 
 model RaporGenerus {
@@ -331,6 +337,23 @@ model RaporGenerus {
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+
+model CatatanWaliKelas {
+  id            String   @id @default(cuid())
+  caberawitId   Int
+  tahunAjaranId String
+  semester      Semester
+  catatan       String
+
+  caberawit   Caberawit  @relation(fields: [caberawitId], references: [id])
+  tahunAjaran TahunAjaran @relation(fields: [tahunAjaranId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([caberawitId, tahunAjaranId, semester])
 }
 
 
