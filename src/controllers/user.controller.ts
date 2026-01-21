@@ -120,65 +120,78 @@ export default {
     }
   },
   async findAll(req: IReqUser, res: Response) {
-    const {
-      page = 1,
-      limit = 10,
-      search,
-    } = req.query as unknown as IPaginationQuery;
-
     try {
-      const skip = (Number(page) - 1) * Number(limit);
+      const {
+        page = 1,
+        limit = 10,
+        search,
+        daerahId,
+        desaId,
+        kelompokId,
+      } = req.query;
 
-      // 🔍 Filter pencarian
-      const where = search
-        ? {
-            OR: [
-              { fullName: { contains: search, mode: "insensitive" } },
-              { username: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {};
+      const where: any = {};
 
-      // Ambil semua user sesuai pagination
-      const [users, count] = await Promise.all([
-        prisma.user.findMany({
-          where,
-          skip,
-          take: Number(limit),
-          orderBy: { createdAt: "desc" },
-        }),
-        prisma.user.count({ where }),
-      ]);
+      // 🔍 Filter search
+      if (search) {
+        where.OR = [
+          {
+            fullName: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+          {
+            username: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
 
-      // 🔄 Ambil semua referensi daerah/desa/kelompok yang diperlukan
-      const [allDaerah, allDesa, allKelompok] = await Promise.all([
-        prisma.daerah.findMany({ select: { id: true, name: true } }),
-        prisma.desa.findMany({ select: { id: true, name: true } }),
-        prisma.kelompok.findMany({ select: { id: true, name: true } }),
-      ]);
+      // 📍 Filter daerah
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
 
-      // 🧩 Gabungkan manual ID → nama
-      const combinedUsers = users.map((user) => ({
-        ...user,
-        daerah: allDaerah.find((d) => d.id === user.daerahId) || null,
-        desa: allDesa.find((d) => d.id === user.desaId) || null,
-        kelompok: allKelompok.find((k) => k.id === user.kelompokId) || null,
-      }));
+      // 🏠 Filter desa
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
 
-      // 📤 Response dengan pagination
-      response.pagination(
-        res,
-        combinedUsers,
-        {
-          total: count,
-          totalPages: Math.ceil(count / Number(limit)),
-          current: Number(page),
+      // 👥 Filter kelompok
+      if (kelompokId) {
+        where.kelompokId = String(kelompokId);
+      }
+
+      const users = await prisma.user.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
         },
-        "✅ Successfully fetched all users"
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.user.count({ where });
+
+      return response.pagination(
+        res,
+        users,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar user"
       );
     } catch (error) {
       console.error("❌ findAll error:", error);
-      response.error(res, error, "❌ Failed to find all users");
+      response.error(res, error, "❌ Gagal mengambil daftar user");
     }
   },
   // 🟢 READ - FIND ONE USER BY ID

@@ -138,7 +138,7 @@ model Mumi {
   jenis_kelamin String
   gol_darah     String
   nama_ortu     String
-  mahasiswa     Boolean
+  mahasiswa     Boolean?
   foto          String?
 
   kelompokId String

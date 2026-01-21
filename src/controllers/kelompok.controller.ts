@@ -51,7 +51,7 @@ export default {
       if (existing) {
         return response.conflict(
           res,
-          "Nama kelompok sudah terdaftar di daerah ini"
+          "Nama kelompok sudah terdaftar di daerah ini",
         );
       }
 
@@ -71,7 +71,7 @@ export default {
       return response.success(
         res,
         newKelompok,
-        "✅ Berhasil menambahkan kelompok!"
+        "✅ Berhasil menambahkan kelompok!",
       );
     } catch (error: any) {
       if (error.name === "ValidationError") {
@@ -82,7 +82,6 @@ export default {
     }
   },
 
-  // 🟡 Ambil daftar kelompok (dengan pagination & filter)
   async findAll(req: IReqUser, res: Response) {
     try {
       const { limit = 100, page = 1, search, daerahId, desaId } = req.query;
@@ -132,7 +131,7 @@ export default {
           total,
           totalPages: Math.ceil(total / +limit),
         },
-        "✅ Berhasil mengambil daftar kelompok"
+        "✅ Berhasil mengambil daftar kelompok",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar kelompok");
@@ -198,7 +197,7 @@ export default {
       if (existing)
         return response.conflict(
           res,
-          "Nama kelompok sudah terdaftar di daerah ini"
+          "Nama kelompok sudah terdaftar di daerah ini",
         );
 
       // ✅ Update data
@@ -238,19 +237,49 @@ export default {
       response.error(res, error, "❌ Gagal menghapus kelompok");
     }
   },
+  // 🔢 Hitung jumlah kelompok (optional filter: daerahId, desaId)
   async countKelompok(req: IReqUser, res: Response) {
     try {
-      const totalKelompok = await prisma.kelompok.count();
+      const { daerahId, desaId, search } = req.query;
+
+      const where: any = {};
+
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
+
+      if (search) {
+        where.name = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      const totalKelompok = await prisma.kelompok.count({
+        where,
+      });
 
       return response.success(
         res,
-        { total: totalKelompok },
-        `✅ Total semua kelompok: ${totalKelompok}`
+        {
+          total: totalKelompok,
+          filter: {
+            daerahId: daerahId ?? null,
+            desaId: desaId ?? null,
+            search: search ?? null,
+          },
+        },
+        "✅ Berhasil menghitung jumlah kelompok",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal menghitung jumlah kelompok");
     }
   },
+
   // 🔍 Ambil kelompok berdasarkan desaId
   async findByDesa(req: IReqUser, res: Response) {
     try {
@@ -291,13 +320,13 @@ export default {
       return response.success(
         res,
         kelompokList,
-        `✅ Daftar kelompok berdasarkan desa ${desa.name}`
+        `✅ Daftar kelompok berdasarkan desa ${desa.name}`,
       );
     } catch (error) {
       response.error(
         res,
         error,
-        "❌ Gagal mengambil kelompok berdasarkan desa"
+        "❌ Gagal mengambil kelompok berdasarkan desa",
       );
     }
   },

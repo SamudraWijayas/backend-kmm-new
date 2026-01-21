@@ -182,7 +182,7 @@ export default {
           total,
           totalPages: Math.ceil(total / +limit),
         },
-        "✅ Berhasil mengambil daftar generus"
+        "✅ Berhasil mengambil daftar generus",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
@@ -278,7 +278,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar generus"
+        "✅ Berhasil mengambil daftar generus",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
@@ -374,7 +374,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar generus"
+        "✅ Berhasil mengambil daftar generus",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
@@ -471,7 +471,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar generus"
+        "✅ Berhasil mengambil daftar generus",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
@@ -568,7 +568,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar generus"
+        "✅ Berhasil mengambil daftar generus",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
@@ -693,7 +693,7 @@ export default {
       return response.success(
         res,
         result,
-        "✅ Berhasil mengambil jumlah generus per jenjang"
+        "✅ Berhasil mengambil jumlah generus per jenjang",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil data statistik jenjang");
@@ -746,14 +746,126 @@ export default {
       return response.success(
         res,
         result,
-        "✅ Statistik generus per jenjang & kelompok berdasarkan desa"
+        "✅ Statistik generus per jenjang & kelompok berdasarkan desa",
       );
     } catch (error) {
       response.error(
         res,
         error,
-        "❌ Gagal mengambil statistik jenjang per kelompok desa"
+        "❌ Gagal mengambil statistik jenjang per kelompok desa",
       );
+    }
+  },
+
+  async countByDaerahDesaKelompok(req: IReqUser, res: Response) {
+    try {
+      const { daerahId, desaId, kelompokId } = req.query;
+
+      const where: any = {};
+
+      // 🔎 Filter daerah
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      // 🔎 Filter desa
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
+
+      // 🔎 Filter kelompok
+      if (kelompokId) {
+        where.kelompokId = String(kelompokId);
+      }
+
+      const data = await prisma.mumi.groupBy({
+        by: ["daerahId", "desaId", "kelompokId"],
+        where,
+        _count: {
+          _all: true,
+        },
+      });
+
+      // Ambil detail nama (optional tapi berguna)
+      const daerahIds = [
+        ...new Set(data.map((d) => d.daerahId).filter(Boolean)),
+      ];
+      const desaIds = [...new Set(data.map((d) => d.desaId).filter(Boolean))];
+      const kelompokIds = [
+        ...new Set(data.map((d) => d.kelompokId).filter(Boolean)),
+      ];
+
+      const [daerahList, desaList, kelompokList] = await Promise.all([
+        prisma.daerah.findMany({ where: { id: { in: daerahIds } } }),
+        prisma.desa.findMany({ where: { id: { in: desaIds } } }),
+        prisma.kelompok.findMany({ where: { id: { in: kelompokIds } } }),
+      ]);
+
+      const result = data.map((item) => {
+        const daerah = daerahList.find((d) => d.id === item.daerahId);
+        const desa = desaList.find((d) => d.id === item.desaId);
+        const kelompok = kelompokList.find((k) => k.id === item.kelompokId);
+
+        return {
+          daerahId: item.daerahId,
+          daerahNama: daerah?.name || "-",
+          desaId: item.desaId,
+          desaNama: desa?.name || "-",
+          kelompokId: item.kelompokId,
+          kelompokNama: kelompok?.name || "-",
+          total: item._count._all,
+        };
+      });
+
+      return response.success(
+        res,
+        result,
+        "✅ Statistik jumlah generus berdasarkan daerah, desa, dan kelompok",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil statistik generus");
+    }
+  },
+
+  async countMumi(req: IReqUser, res: Response) {
+    try {
+      const { daerahId, desaId, search } = req.query;
+
+      const where: any = {};
+
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
+
+      if (search) {
+        where.name = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      const totalMumi = await prisma.mumi.count({
+        where,
+      });
+
+      return response.success(
+        res,
+        {
+          total: totalMumi,
+          filter: {
+            daerahId: daerahId ?? null,
+            desaId: desaId ?? null,
+            search: search ?? null,
+          },
+        },
+        "✅ Berhasil menghitung jumlah mumi",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
 };

@@ -453,6 +453,12 @@ router.get(
 );
 
 router.get(
+  "/generus/:kelompokId/mahasiswa/kelompok",
+  [authMiddleware, aclMiddleware([ROLES.DESA, ROLES.SUBDESA])],
+  generusController.findAllByMahasiswaKelompok
+);
+
+router.get(
   "/generus/:id",
   [
     authMiddleware,
@@ -529,6 +535,8 @@ router.delete(
 router.get("/count/daerah", authMiddleware, daerahController.countDaerah);
 router.get("/count/desa", authMiddleware, desaController.countDesa);
 router.get("/count/kelompok", authMiddleware, kelompokController.countKelompok);
+router.get("/count/mumi", authMiddleware, generusController.countMumi);
+router.get("/count/caberawit", authMiddleware, caberawitController.countCaberawit);
 
 // ================== Rapor ==================
 

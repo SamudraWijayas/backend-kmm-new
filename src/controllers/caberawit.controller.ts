@@ -109,7 +109,7 @@ export default {
         jenjang,
         daerah,
         desa,
-        kelompok
+        kelompok,
       } = req.query;
 
       const where: any = {};
@@ -129,14 +129,14 @@ export default {
         where.jenjangId = jenjang;
       }
 
-      if (daerah){
-        where.daerahId = daerah
+      if (daerah) {
+        where.daerahId = daerah;
       }
-      if (desa){
-        where.desaId = desa
+      if (desa) {
+        where.desaId = desa;
       }
-      if (kelompok){
-        where.kelompokId = kelompok
+      if (kelompok) {
+        where.kelompokId = kelompok;
       }
 
       // 🎂 Filter usia (dihitung dari tgl_lahir)
@@ -194,7 +194,7 @@ export default {
           total,
           totalPages: Math.ceil(total / +limit),
         },
-        "✅ Berhasil mengambil daftar Caberawit"
+        "✅ Berhasil mengambil daftar Caberawit",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
@@ -282,7 +282,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar Caberawit"
+        "✅ Berhasil mengambil daftar Caberawit",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
@@ -370,7 +370,7 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar Caberawit"
+        "✅ Berhasil mengambil daftar Caberawit",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
@@ -460,6 +460,47 @@ export default {
       response.success(res, null, "✅ Caberawit berhasil dihapus");
     } catch (error) {
       response.error(res, error, "❌ Gagal menghapus Caberawit");
+    }
+  },
+  async countCaberawit(req: IReqUser, res: Response) {
+    try {
+      const { daerahId, desaId, search } = req.query;
+
+      const where: any = {};
+
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
+
+      if (search) {
+        where.name = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      const totalCaberawit = await prisma.caberawit.count({
+        where,
+      });
+
+      return response.success(
+        res,
+        {
+          total: totalCaberawit,
+          filter: {
+            daerahId: daerahId ?? null,
+            desaId: desaId ?? null,
+            search: search ?? null,
+          },
+        },
+        "✅ Berhasil menghitung jumlah mumi",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
 };
