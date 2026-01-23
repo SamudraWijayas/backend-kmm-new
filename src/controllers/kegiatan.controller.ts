@@ -51,21 +51,21 @@ export default {
         return response.error(
           res,
           null,
-          "daerahId wajib diisi untuk kegiatan daerah"
+          "daerahId wajib diisi untuk kegiatan daerah",
         );
       }
       if (tingkat === "DESA" && !desaId) {
         return response.error(
           res,
           null,
-          "desaId wajib diisi untuk kegiatan desa"
+          "desaId wajib diisi untuk kegiatan desa",
         );
       }
       if (tingkat === "KELOMPOK" && !kelompokId) {
         return response.error(
           res,
           null,
-          "kelompokId wajib diisi untuk kegiatan kelompok"
+          "kelompokId wajib diisi untuk kegiatan kelompok",
         );
       }
 
@@ -119,7 +119,7 @@ export default {
       response.success(
         res,
         kegiatanList,
-        "✅ Berhasil mengambil semua kegiatan"
+        "✅ Berhasil mengambil semua kegiatan",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar kegiatan");
@@ -213,7 +213,7 @@ export default {
       response.success(
         res,
         { kegiatan, peserta: pesertaDenganStatus },
-        "✅ Berhasil mengambil kegiatan & peserta wajib"
+        "✅ Berhasil mengambil kegiatan & peserta wajib",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil kegiatan");
@@ -250,21 +250,21 @@ export default {
         return response.error(
           res,
           null,
-          "daerahId wajib diisi untuk kegiatan daerah"
+          "daerahId wajib diisi untuk kegiatan daerah",
         );
       }
       if (tingkat === "DESA" && !desaId) {
         return response.error(
           res,
           null,
-          "desaId wajib diisi untuk kegiatan desa"
+          "desaId wajib diisi untuk kegiatan desa",
         );
       }
       if (tingkat === "KELOMPOK" && !kelompokId) {
         return response.error(
           res,
           null,
-          "kelompokId wajib diisi untuk kegiatan kelompok"
+          "kelompokId wajib diisi untuk kegiatan kelompok",
         );
       }
 
@@ -363,7 +363,7 @@ export default {
       response.success(
         res,
         kegiatanList,
-        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user"
+        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil kegiatan desa");
@@ -419,10 +419,57 @@ export default {
       response.success(
         res,
         kegiatanList,
-        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user"
+        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil kegiatan desa");
+    }
+  },
+
+  async findAllByFilter(req: IReqUser, res: Response) {
+    try {
+      const { daerahId, desaId, kelompokId } = req.query;
+      const where: any = {};
+
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
+
+      if (kelompokId) {
+        where.kelompokId = String(kelompokId);
+      }
+
+      const kegiatanList = await prisma.kegiatan.findMany({
+        where,
+        include: {
+          daerah: { select: { id: true, name: true } },
+          desa: { select: { id: true, name: true } },
+          kelompok: { select: { id: true, name: true } },
+          sasaran: {
+            select: {
+              jenjang: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      response.success(
+        res,
+        kegiatanList,
+        "✅ Berhasil mengambil semua kegiatan",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil daftar kegiatan");
     }
   },
 };

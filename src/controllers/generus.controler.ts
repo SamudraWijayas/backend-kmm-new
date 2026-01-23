@@ -99,7 +99,7 @@ export default {
   },
 
   // 🟡 Ambil semua Generus
-  async findAll(req: IReqUser, res: Response) {
+  async findsemua(req: IReqUser, res: Response) {
     try {
       const {
         limit = 10,
@@ -284,19 +284,11 @@ export default {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
     }
   },
-  async findAllByDesa(req: IReqUser, res: Response) {
+  async findAll(req: IReqUser, res: Response) {
     try {
-      const { desaId } = req.params;
-
-      const desa = await prisma.desa.findUnique({
-        where: { id: String(desaId) },
-      });
-
-      if (!desa) {
-        return response.notFound(res, "Desa tidak ditemukan");
-      }
-
       const {
+        daerahId,
+        desaId,
         limit = 10,
         page = 1,
         search,
@@ -306,10 +298,17 @@ export default {
         jenjang,
       } = req.query;
 
-      // ✅ WAJIB: filter desa
-      const where: any = {
-        desaId: String(desaId),
-      };
+      const where: any = {};
+
+      // 🌍 Filter daerah
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      // 🏘️ Filter desa
+      if (desaId) {
+        where.desaId = String(desaId);
+      }
 
       // 🔍 Filter nama
       if (search) {
@@ -333,22 +332,21 @@ export default {
       if (minUsia || maxUsia) {
         const today = new Date();
 
-        let tanggalLahirMin: Date | undefined;
-        let tanggalLahirMax: Date | undefined;
+        const tglLahirFilter: any = {};
 
         if (maxUsia) {
-          tanggalLahirMin = new Date(today);
-          tanggalLahirMin.setFullYear(today.getFullYear() - Number(maxUsia));
+          const minDate = new Date(today);
+          minDate.setFullYear(today.getFullYear() - Number(maxUsia));
+          tglLahirFilter.gte = minDate;
         }
 
         if (minUsia) {
-          tanggalLahirMax = new Date(today);
-          tanggalLahirMax.setFullYear(today.getFullYear() - Number(minUsia));
+          const maxDate = new Date(today);
+          maxDate.setFullYear(today.getFullYear() - Number(minUsia));
+          tglLahirFilter.lte = maxDate;
         }
 
-        where.tgl_lahir = {};
-        if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
-        if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
+        where.tgl_lahir = tglLahirFilter;
       }
 
       const list = await prisma.mumi.findMany({
@@ -827,9 +825,64 @@ export default {
     }
   },
 
+  async countStatsByKelompokId(req: IReqUser, res: Response) {
+    try {
+      const { kelompokId } = req.params;
+
+      // ✅ Validasi kelompok
+      const kelompok = await prisma.kelompok.findUnique({
+        where: { id: String(kelompokId) },
+      });
+
+      if (!kelompok) {
+        return response.notFound(res, "Kelompok tidak ditemukan");
+      }
+
+      // 📊 Group by jenjang DI DALAM kelompok
+      const data = await prisma.mumi.groupBy({
+        by: ["jenjangId"],
+        where: {
+          kelompokId: String(kelompokId),
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const jenjangIds = data.map((d) => d.jenjangId);
+
+      const jenjangList = await prisma.jenjang.findMany({
+        where: {
+          id: { in: jenjangIds },
+        },
+      });
+
+      const result = data.map((item) => {
+        const jenjang = jenjangList.find((j) => j.id === item.jenjangId);
+
+        return {
+          jenjangId: item.jenjangId,
+          jenjangNama: jenjang?.name || "-",
+          total: item._count._all,
+        };
+      });
+
+      return response.success(
+        res,
+        result,
+        "✅ Statistik generus per jenjang berdasarkan kelompok",
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil statistik generus per jenjang kelompok",
+      );
+    }
+  },
   async countMumi(req: IReqUser, res: Response) {
     try {
-      const { daerahId, desaId, search } = req.query;
+      const { daerahId, desaId, kelompokId } = req.query;
 
       const where: any = {};
 
@@ -841,11 +894,8 @@ export default {
         where.desaId = String(desaId);
       }
 
-      if (search) {
-        where.name = {
-          contains: String(search),
-          mode: "insensitive",
-        };
+      if (kelompokId) {
+        where.kelompokId = String(kelompokId);
       }
 
       const totalMumi = await prisma.mumi.count({
@@ -859,7 +909,7 @@ export default {
           filter: {
             daerahId: daerahId ?? null,
             desaId: desaId ?? null,
-            search: search ?? null,
+            kelompokId: kelompokId ?? null,
           },
         },
         "✅ Berhasil menghitung jumlah mumi",

@@ -464,7 +464,7 @@ export default {
   },
   async countCaberawit(req: IReqUser, res: Response) {
     try {
-      const { daerahId, desaId, search } = req.query;
+      const { daerahId, desaId, search, kelompokId } = req.query;
 
       const where: any = {};
 
@@ -474,6 +474,10 @@ export default {
 
       if (desaId) {
         where.desaId = String(desaId);
+      }
+
+      if (kelompokId) {
+        where.kelompokId = String(kelompokId);
       }
 
       if (search) {
@@ -494,6 +498,7 @@ export default {
           filter: {
             daerahId: daerahId ?? null,
             desaId: desaId ?? null,
+            kelompokId: kelompokId ?? null,
             search: search ?? null,
           },
         },
