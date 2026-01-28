@@ -17,7 +17,6 @@ import caberawitController from "../controllers/caberawit.controller";
 import absenController from "../controllers/absenGenerus.controller";
 import mediaController from "../controllers/media.controller";
 import userController from "../controllers/user.controller";
-import raporController from "../controllers/rapor.controller";
 import indikatorController from "../controllers/indikatorKelas.controller";
 import taController from "../controllers/tahunajaran.controller";
 import mapelController from "../controllers/mapel.controler";
@@ -25,6 +24,7 @@ import kategoriController from "../controllers/kategoriIndikator.controler";
 import absenCaberawitController from "../controllers/absenCaberawit.controller";
 import catatanWaliKelasController from "../controllers/catatanWaliKelas.controller";
 import authGenerusController from "../controllers/authGenerus";
+import raporController from "../controllers/rapor.controller";
 
 const router = express.Router();
 
@@ -104,14 +104,7 @@ router.post(
   userController.addUser,
 );
 
-router.get(
-  "/users",
-  [
-    authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
-  ],
-  userController.findAll,
-);
+router.get("/users", authMiddleware, userController.findAll);
 router.delete(
   "/users/:id",
   [
@@ -229,7 +222,10 @@ router.post(
 
 router.get(
   "/daerah",
-  [authMiddleware, aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH])],
+  [
+    authMiddleware,
+    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+  ],
   daerahController.findAll,
 );
 
@@ -395,7 +391,10 @@ router.post(
 );
 router.get(
   "/kelasjenjang",
-  [authMiddleware, aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH])],
+  [
+    authMiddleware,
+    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+  ],
   kelasjenjangController.findAll,
 );
 
@@ -502,13 +501,23 @@ router.get(
 );
 
 router.get(
-  "/caberawit/:id",
+  "/caberawit-one/:id",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   caberawitController.findOne,
 );
+
 router.put(
   "/caberawit/:id",
   [
@@ -540,24 +549,30 @@ router.get(
 // ================== Rapor ==================
 
 router.get(
-  "/rapor-indikator",
-  authMiddleware,
-  raporController.getIndikatorByKelas,
-);
-router.get(
   "/rapor/caberawit/:caberawitId",
   authMiddleware,
-  raporController.getRaporByCaberawitId,
+  raporController.getByCaberawit,
 );
+router.post("/rapor", authMiddleware, raporController.upsert);
+// router.get(
+//   "/rapor/caberawit/:caberawitId",
+//   authMiddleware,
+//   raporController.getRaporByCaberawitId,
+// );
 
-router.post("/rapor", authMiddleware, raporController.createRapor);
-router.patch("/rapor/:id", authMiddleware, raporController.updateRapor);
-router.delete("/rapor/:id", authMiddleware, raporController.deleteRapor);
+// router.post("/rapor", authMiddleware, raporController.createRapor);
+// router.patch("/rapor/:id", authMiddleware, raporController.updateRapor);
+// router.delete("/rapor/:id", authMiddleware, raporController.deleteRapor);
 
 // ================== Indikator Kelas ==================
 
 router.post("/indikator", authMiddleware, indikatorController.create);
 router.get("/indikator", authMiddleware, indikatorController.getAll);
+router.get(
+  "/indikator/kelas-jenjang/:kelasJenjangId",
+  authMiddleware,
+  indikatorController.getByKelasJenjang,
+);
 router.get(
   "/indikator/by-jenjang/:jenjangId",
   authMiddleware,

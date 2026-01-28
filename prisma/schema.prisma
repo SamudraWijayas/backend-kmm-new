@@ -311,8 +311,6 @@ enum StatusRapor {
 model TahunAjaran {
   id      String         @id @default(cuid())
   name    String         // misal "2024/2025"
-  rapor   RaporGenerus[]
-  catatanWali CatatanWaliKelas[]
 }
 
 model RaporGenerus {
@@ -322,7 +320,6 @@ model RaporGenerus {
   indikatorKelasId  String
   kelasJenjangId    String
   status            StatusRapor
-  tahunAjaranId     String
   semester          Semester
 
   // Nilai untuk pengetahuan dan keterampilan
@@ -333,27 +330,26 @@ model RaporGenerus {
   mumi              Mumi?        @relation(fields: [mumiId], references: [id])
   caberawit         Caberawit?   @relation(fields: [caberawitId], references: [id])
   indikatorKelas    IndikatorKelas @relation(fields: [indikatorKelasId], references: [id])
-  tahunAjaran       TahunAjaran  @relation(fields: [tahunAjaranId], references: [id])
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@unique([caberawitId, indikatorKelasId, semester], name: "rapor_unique_caberawit")
 }
 
 
 model CatatanWaliKelas {
   id            String   @id @default(cuid())
   caberawitId   Int
-  tahunAjaranId String
   semester      Semester
   catatan       String
 
   caberawit   Caberawit  @relation(fields: [caberawitId], references: [id])
-  tahunAjaran TahunAjaran @relation(fields: [tahunAjaranId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([caberawitId, tahunAjaranId, semester])
+  @@unique([caberawitId, semester])
 }
 
 

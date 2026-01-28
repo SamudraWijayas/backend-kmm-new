@@ -155,4 +155,50 @@ export default {
       response.error(res, error, "Gagal menghapus indikator");
     }
   },
+  async getByKelasJenjang(req: Request, res: Response) {
+    try {
+      const { kelasJenjangId } = req.params;
+
+      if (!kelasJenjangId) {
+        return response.errors(res, null, "kelasJenjangId wajib diisi", 400);
+      }
+
+      const indikator = await prisma.indikatorKelas.findMany({
+        where: {
+          kelasJenjangId,
+        },
+        include: {
+          kategoriIndikator: {
+            include: {
+              mataPelajaran: true,
+            },
+          },
+        },
+        orderBy: [
+          {
+            kategoriIndikator: {
+              mataPelajaran: {
+                name: "asc",
+              },
+            },
+          },
+          {
+            indikator: "asc",
+          },
+        ],
+      });
+
+      return response.success(
+        res,
+        indikator,
+        "Berhasil mengambil indikator berdasarkan kelas jenjang",
+      );
+    } catch (error) {
+      return response.error(
+        res,
+        error,
+        "Gagal mengambil indikator berdasarkan kelas jenjang",
+      );
+    }
+  },
 };

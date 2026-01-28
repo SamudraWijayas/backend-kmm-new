@@ -20,6 +20,57 @@ const caberawitAddDTO = Yup.object({
   nama_ortu: Yup.string().required("Nama orang tua wajib diisi"),
 });
 
+function buildRapor(rapor: any[]) {
+  const result: any[] = [];
+  const mapelMap = new Map();
+
+  for (const r of rapor) {
+    const indikator = r.indikatorKelas;
+    const kategori = indikator.kategoriIndikator;
+    const mapel = kategori.mataPelajaran;
+
+    // 1️⃣ Mata Pelajaran
+    if (!mapelMap.has(mapel.id)) {
+      mapelMap.set(mapel.id, {
+        id: mapel.id,
+        name: mapel.name,
+        kategori: new Map(),
+      });
+    }
+
+    const mapelItem = mapelMap.get(mapel.id);
+
+    // 2️⃣ Kategori
+    if (!mapelItem.kategori.has(kategori.id)) {
+      mapelItem.kategori.set(kategori.id, {
+        id: kategori.id,
+        name: kategori.name,
+        indikator: [],
+      });
+    }
+
+    const kategoriItem = mapelItem.kategori.get(kategori.id);
+
+    // 3️⃣ Indikator
+    kategoriItem.indikator.push({
+      id: indikator.id,
+      indikator: indikator.indikator,
+      semester: r.semester,
+      status: r.status,
+      nilaiPengetahuan: r.nilaiPengetahuan,
+      nilaiKeterampilan: r.nilaiKeterampilan,
+    });
+  }
+
+  // convert Map → Array
+  for (const mapel of mapelMap.values()) {
+    mapel.kategori = Array.from(mapel.kategori.values());
+    result.push(mapel);
+  }
+
+  return result;
+}
+
 export default {
   // 🟢 Tambah Generus
   async addCaberawit(req: IReqUser, res: Response) {
@@ -34,7 +85,6 @@ export default {
       jenis_kelamin,
       gol_darah,
       nama_ortu,
-
       foto,
     } = req.body;
 
@@ -178,6 +228,8 @@ export default {
           desa: true,
           kelompok: true,
           jenjang: true,
+          kelasJenjang: true,
+          wali: true,
         },
         orderBy: { createdAt: "desc" },
         take: +limit,
@@ -413,7 +465,7 @@ export default {
       jenis_kelamin,
       gol_darah,
       nama_ortu,
-
+      waliId,
       foto,
     } = req.body;
 
@@ -427,11 +479,11 @@ export default {
           kelompok: { connect: { id: kelompokId } },
           jenjang: { connect: { id: jenjangId } },
           kelasJenjang: { connect: { id: kelasJenjangId } },
+          wali: { connect: { id: Number(waliId) } },
           tgl_lahir: new Date(tgl_lahir),
           jenis_kelamin,
           gol_darah,
           nama_ortu,
-
           foto,
         },
         include: {
@@ -440,6 +492,7 @@ export default {
           kelompok: true,
           jenjang: true,
           kelasJenjang: true,
+          wali: true,
         },
       });
 
@@ -508,4 +561,5 @@ export default {
       response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
+ 
 };

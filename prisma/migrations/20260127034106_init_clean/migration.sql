@@ -79,13 +79,14 @@ CREATE TABLE `KegiatanSasaran` (
 CREATE TABLE `Mumi` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nama` VARCHAR(191) NOT NULL,
+    `password` VARCHAR(191) NULL,
     `jenjangId` VARCHAR(191) NOT NULL,
     `kelasJenjangId` VARCHAR(191) NULL,
     `tgl_lahir` DATETIME(3) NOT NULL,
     `jenis_kelamin` VARCHAR(191) NOT NULL,
     `gol_darah` VARCHAR(191) NOT NULL,
     `nama_ortu` VARCHAR(191) NOT NULL,
-    `mahasiswa` BOOLEAN NOT NULL,
+    `mahasiswa` BOOLEAN NULL,
     `foto` VARCHAR(191) NULL,
     `kelompokId` VARCHAR(191) NOT NULL,
     `desaId` VARCHAR(191) NOT NULL,
@@ -110,6 +111,7 @@ CREATE TABLE `Caberawit` (
     `kelompokId` VARCHAR(191) NOT NULL,
     `desaId` VARCHAR(191) NOT NULL,
     `daerahId` VARCHAR(191) NOT NULL,
+    `waliId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -133,13 +135,12 @@ CREATE TABLE `AbsenGenerus` (
 CREATE TABLE `AbsenCaberawit` (
     `id` VARCHAR(191) NOT NULL,
     `caberawitId` INTEGER NOT NULL,
-    `bulan` INTEGER NOT NULL,
-    `tahun` INTEGER NOT NULL,
-    `jumlahHadir` INTEGER NOT NULL,
-    `totalPertemuan` INTEGER NULL,
+    `tanggal` DATETIME(3) NOT NULL,
+    `status` ENUM('HADIR', 'IZIN', 'SAKIT', 'ALPA') NOT NULL DEFAULT 'ALPA',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    UNIQUE INDEX `AbsenCaberawit_caberawitId_tanggal_key`(`caberawitId`, `tanggal`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -214,13 +215,25 @@ CREATE TABLE `RaporGenerus` (
     `indikatorKelasId` VARCHAR(191) NOT NULL,
     `kelasJenjangId` VARCHAR(191) NOT NULL,
     `status` ENUM('TUNTAS', 'TIDAK_TUNTAS') NOT NULL,
-    `tahunAjaranId` VARCHAR(191) NOT NULL,
     `semester` ENUM('GANJIL', 'GENAP') NOT NULL,
     `nilaiPengetahuan` INTEGER NULL,
     `nilaiKeterampilan` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CatatanWaliKelas` (
+    `id` VARCHAR(191) NOT NULL,
+    `caberawitId` INTEGER NOT NULL,
+    `semester` ENUM('GANJIL', 'GENAP') NOT NULL,
+    `catatan` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `CatatanWaliKelas_caberawitId_semester_key`(`caberawitId`, `semester`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -252,10 +265,10 @@ ALTER TABLE `Kegiatan` ADD CONSTRAINT `Kegiatan_desaId_fkey` FOREIGN KEY (`desaI
 ALTER TABLE `Kegiatan` ADD CONSTRAINT `Kegiatan_kelompokId_fkey` FOREIGN KEY (`kelompokId`) REFERENCES `Kelompok`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `KegiatanSasaran` ADD CONSTRAINT `KegiatanSasaran_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `KegiatanSasaran` ADD CONSTRAINT `KegiatanSasaran_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `KegiatanSasaran` ADD CONSTRAINT `KegiatanSasaran_jenjangId_fkey` FOREIGN KEY (`jenjangId`) REFERENCES `Jenjang`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `KegiatanSasaran` ADD CONSTRAINT `KegiatanSasaran_jenjangId_fkey` FOREIGN KEY (`jenjangId`) REFERENCES `Jenjang`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Mumi` ADD CONSTRAINT `Mumi_jenjangId_fkey` FOREIGN KEY (`jenjangId`) REFERENCES `Jenjang`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -279,6 +292,9 @@ ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_jenjangId_fkey` FOREIGN KEY (`
 ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_kelasJenjangId_fkey` FOREIGN KEY (`kelasJenjangId`) REFERENCES `KelasJenjang`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_waliId_fkey` FOREIGN KEY (`waliId`) REFERENCES `User`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_kelompokId_fkey` FOREIGN KEY (`kelompokId`) REFERENCES `Kelompok`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -288,7 +304,7 @@ ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_desaId_fkey` FOREIGN KEY (`des
 ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_daerahId_fkey` FOREIGN KEY (`daerahId`) REFERENCES `Daerah`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `AbsenGenerus` ADD CONSTRAINT `AbsenGenerus_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `AbsenGenerus` ADD CONSTRAINT `AbsenGenerus_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `AbsenGenerus` ADD CONSTRAINT `AbsenGenerus_mumiId_fkey` FOREIGN KEY (`mumiId`) REFERENCES `Mumi`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -321,4 +337,4 @@ ALTER TABLE `RaporGenerus` ADD CONSTRAINT `RaporGenerus_caberawitId_fkey` FOREIG
 ALTER TABLE `RaporGenerus` ADD CONSTRAINT `RaporGenerus_indikatorKelasId_fkey` FOREIGN KEY (`indikatorKelasId`) REFERENCES `IndikatorKelas`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE `RaporGenerus` ADD CONSTRAINT `RaporGenerus_tahunAjaranId_fkey` FOREIGN KEY (`tahunAjaranId`) REFERENCES `TahunAjaran`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `CatatanWaliKelas` ADD CONSTRAINT `CatatanWaliKelas_caberawitId_fkey` FOREIGN KEY (`caberawitId`) REFERENCES `Caberawit`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

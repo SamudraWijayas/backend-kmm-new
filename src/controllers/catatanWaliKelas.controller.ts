@@ -9,7 +9,6 @@ import * as Yup from "yup";
 ========================= */
 const catatanWaliDTO = Yup.object({
   caberawitId: Yup.number().required("Caberawit wajib dipilih"),
-  tahunAjaranId: Yup.string().required("Tahun ajaran wajib diisi"),
   semester: Yup.string()
     .oneOf(["GANJIL", "GENAP"])
     .required("Semester wajib diisi"),
@@ -19,18 +18,16 @@ const catatanWaliDTO = Yup.object({
 export default {
   /* =========================
      CREATE / UPDATE
-     (1 CABERAWIT = 1 CATATAN / TA / SEMESTER)
+     (1 CABERAWIT = 1 CATATAN / SEMESTER)
   ========================= */
   async upsert(req: IReqUser, res: Response) {
-    const { caberawitId, tahunAjaranId, semester, catatan } = req.body;
+    const { caberawitId, semester, catatan } = req.body;
 
     try {
-      await catatanWaliDTO.validate({
-        caberawitId,
-        tahunAjaranId,
-        semester,
-        catatan,
-      });
+      await catatanWaliDTO.validate(
+        { caberawitId, semester, catatan },
+        { abortEarly: false }
+      );
 
       // cek caberawit
       const caberawit = await prisma.caberawit.findUnique({
@@ -39,18 +36,10 @@ export default {
       if (!caberawit)
         return response.notFound(res, "Caberawit tidak ditemukan");
 
-      // cek tahun ajaran
-      const tahunAjaran = await prisma.tahunAjaran.findUnique({
-        where: { id: tahunAjaranId },
-      });
-      if (!tahunAjaran)
-        return response.notFound(res, "Tahun ajaran tidak ditemukan");
-
       const data = await prisma.catatanWaliKelas.upsert({
         where: {
-          caberawitId_tahunAjaranId_semester: {
+          caberawitId_semester: {
             caberawitId: Number(caberawitId),
-            tahunAjaranId,
             semester,
           },
         },
@@ -59,12 +48,10 @@ export default {
         },
         create: {
           caberawitId: Number(caberawitId),
-          tahunAjaranId,
           semester,
           catatan,
         },
         include: {
-          tahunAjaran: true,
           caberawit: {
             select: {
               id: true,
@@ -80,44 +67,45 @@ export default {
         },
       });
 
-      response.success(
+      return response.success(
         res,
         data,
         "✅ Catatan wali kelas berhasil disimpan"
       );
     } catch (error) {
-      response.error(res, error, "❌ Gagal menyimpan catatan wali kelas");
+      return response.error(
+        res,
+        error,
+        "❌ Gagal menyimpan catatan wali kelas"
+      );
     }
   },
 
   /* =========================
      GET SATU CATATAN
-     (BUKAN ARRAY)
   ========================= */
   async get(req: IReqUser, res: Response) {
     const { caberawitId } = req.params;
-    const { tahunAjaranId, semester } = req.query;
+    const { semester } = req.query;
 
     try {
-      if (!tahunAjaranId || !semester) {
+      if (!semester) {
         return response.errors(
           res,
           null,
-          "tahunAjaranId dan semester wajib diisi",
+          "semester wajib diisi",
           400
         );
       }
 
       const data = await prisma.catatanWaliKelas.findUnique({
         where: {
-          caberawitId_tahunAjaranId_semester: {
+          caberawitId_semester: {
             caberawitId: Number(caberawitId),
-            tahunAjaranId: String(tahunAjaranId),
             semester: semester as any,
           },
         },
         include: {
-          tahunAjaran: true,
           caberawit: {
             select: {
               id: true,
@@ -139,50 +127,57 @@ export default {
           "Catatan wali kelas belum dibuat"
         );
 
-      response.success(
+      return response.success(
         res,
         data,
         "✅ Berhasil mengambil catatan wali kelas"
       );
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengambil catatan wali kelas");
+      return response.error(
+        res,
+        error,
+        "❌ Gagal mengambil catatan wali kelas"
+      );
     }
   },
 
   /* =========================
-     DELETE (OPTIONAL)
+     DELETE
   ========================= */
   async remove(req: IReqUser, res: Response) {
     const { caberawitId } = req.params;
-    const { tahunAjaranId, semester } = req.query;
+    const { semester } = req.query;
 
     try {
-      if (!tahunAjaranId || !semester) {
+      if (!semester) {
         return response.errors(
           res,
           null,
-          "tahunAjaranId dan semester wajib diisi",
+          "semester wajib diisi",
           400
         );
       }
 
       await prisma.catatanWaliKelas.delete({
         where: {
-          caberawitId_tahunAjaranId_semester: {
+          caberawitId_semester: {
             caberawitId: Number(caberawitId),
-            tahunAjaranId: String(tahunAjaranId),
             semester: semester as any,
           },
         },
       });
 
-      response.success(
+      return response.success(
         res,
         null,
         "✅ Catatan wali kelas berhasil dihapus"
       );
     } catch (error) {
-      response.error(res, error, "❌ Gagal menghapus catatan wali kelas");
+      return response.error(
+        res,
+        error,
+        "❌ Gagal menghapus catatan wali kelas"
+      );
     }
   },
 };
