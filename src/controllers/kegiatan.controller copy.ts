@@ -156,24 +156,9 @@ export default {
 
       const whereMumi: any = {};
 
-      function mapJenisKelaminKegiatanToMumi(value: string) {
-        const map: Record<string, string> = {
-          LAKI_LAKI: "Laki-laki",
-          PEREMPUAN: "Perempuan",
-        };
-
-        return map[value];
-      }
-
       if (kegiatan.jenisKelamin && kegiatan.jenisKelamin !== "SEMUA") {
-        whereMumi.jenis_kelamin = mapJenisKelaminKegiatanToMumi(
-          kegiatan.jenisKelamin,
-        );
+        whereMumi.jenis_kelamin = kegiatan.jenisKelamin;
       }
-
-      // if (kegiatan.jenisKelamin && kegiatan.jenisKelamin !== "SEMUA") {
-      //   whereMumi.jenis_kelamin = kegiatan.jenisKelamin;
-      // }
 
       // 📍 Scope wilayah sesuai tingkat
       if (kegiatan.tingkat === "DAERAH") {
@@ -185,12 +170,8 @@ export default {
       }
 
       // 🎯 TARGET FILTER
-      if (kegiatan.targetType === "JENJANG" && jenjangIds.length === 0) {
-        return response.success(
-          res,
-          { kegiatan, peserta: [] },
-          "⚠️ Kegiatan ini tidak memiliki sasaran jenjang",
-        );
+      if (kegiatan.targetType === "JENJANG") {
+        whereMumi.jenjangId = { in: jenjangIds };
       }
 
       if (kegiatan.targetType === "MAHASISWA") {

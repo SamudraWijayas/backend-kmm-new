@@ -94,20 +94,37 @@ model Kegiatan {
   startDate  DateTime
   endDate    DateTime
   tingkat    Tingkat
+  targetType  TargetType
+  jenisKelamin    kegiatan_jenisKelamin @default(SEMUA)
   daerahId   String?
   desaId     String?
   kelompokId String?
+  minUsia     Int?
+  maxUsia     Int?
 
   daerah   Daerah?   @relation(fields: [daerahId], references: [id])
   desa     Desa?     @relation(fields: [desaId], references: [id])
   kelompok Kelompok? @relation(fields: [kelompokId], references: [id])
 
   sasaran KegiatanSasaran[]
+  
   absen   AbsenGenerus[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum TargetType {
+  JENJANG
+  MAHASISWA
+  USIA
+}
+enum kegiatan_jenisKelamin {
+  LAKI_LAKI
+  PEREMPUAN
+  SEMUA
+}
+
 
 model KegiatanSasaran {
   id         Int    @id @default(autoincrement())
