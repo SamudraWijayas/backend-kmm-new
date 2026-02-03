@@ -441,6 +441,7 @@ export default {
           kelompok: true,
           jenjang: true,
           wali: true,
+          kelasJenjang: true,
         },
       });
 
