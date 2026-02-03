@@ -26,7 +26,7 @@ export default {
     try {
       await catatanWaliDTO.validate(
         { caberawitId, semester, catatan },
-        { abortEarly: false }
+        { abortEarly: false },
       );
 
       // cek caberawit
@@ -70,13 +70,13 @@ export default {
       return response.success(
         res,
         data,
-        "✅ Catatan wali kelas berhasil disimpan"
+        "✅ Catatan wali kelas berhasil disimpan",
       );
     } catch (error) {
       return response.error(
         res,
         error,
-        "❌ Gagal menyimpan catatan wali kelas"
+        "❌ Gagal menyimpan catatan wali kelas",
       );
     }
   },
@@ -86,24 +86,11 @@ export default {
   ========================= */
   async get(req: IReqUser, res: Response) {
     const { caberawitId } = req.params;
-    const { semester } = req.query;
 
     try {
-      if (!semester) {
-        return response.errors(
-          res,
-          null,
-          "semester wajib diisi",
-          400
-        );
-      }
-
-      const data = await prisma.catatanWaliKelas.findUnique({
+      const data = await prisma.catatanWaliKelas.findFirst({
         where: {
-          caberawitId_semester: {
-            caberawitId: Number(caberawitId),
-            semester: semester as any,
-          },
+          caberawitId: Number(caberawitId),
         },
         include: {
           caberawit: {
@@ -119,28 +106,28 @@ export default {
             },
           },
         },
+        orderBy: {
+          createdAt: "desc", // ambil yang terbaru (opsional tapi recommended)
+        },
       });
 
-      if (!data)
-        return response.notFound(
-          res,
-          "Catatan wali kelas belum dibuat"
-        );
+      if (!data) {
+        return response.notFound(res, "Catatan wali kelas belum dibuat");
+      }
 
       return response.success(
         res,
         data,
-        "✅ Berhasil mengambil catatan wali kelas"
+        "✅ Berhasil mengambil catatan wali kelas",
       );
     } catch (error) {
       return response.error(
         res,
         error,
-        "❌ Gagal mengambil catatan wali kelas"
+        "❌ Gagal mengambil catatan wali kelas",
       );
     }
   },
-
   /* =========================
      DELETE
   ========================= */
@@ -150,12 +137,7 @@ export default {
 
     try {
       if (!semester) {
-        return response.errors(
-          res,
-          null,
-          "semester wajib diisi",
-          400
-        );
+        return response.errors(res, null, "semester wajib diisi", 400);
       }
 
       await prisma.catatanWaliKelas.delete({
@@ -170,13 +152,13 @@ export default {
       return response.success(
         res,
         null,
-        "✅ Catatan wali kelas berhasil dihapus"
+        "✅ Catatan wali kelas berhasil dihapus",
       );
     } catch (error) {
       return response.error(
         res,
         error,
-        "❌ Gagal menghapus catatan wali kelas"
+        "❌ Gagal menghapus catatan wali kelas",
       );
     }
   },

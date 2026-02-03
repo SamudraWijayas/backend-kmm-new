@@ -440,6 +440,7 @@ export default {
           desa: true,
           kelompok: true,
           jenjang: true,
+          wali: true,
         },
       });
 
@@ -561,5 +562,4 @@ export default {
       response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
- 
 };

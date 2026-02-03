@@ -102,7 +102,7 @@ export default {
           update: {
             status: item.status || "ALPA",
           },
-        })
+        }),
       );
 
       await prisma.$transaction(ops);
@@ -110,7 +110,7 @@ export default {
       response.success(
         res,
         null,
-        "✅ Absensi caberawit massal berhasil disimpan"
+        "✅ Absensi caberawit massal berhasil disimpan",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal menyimpan absensi massal");
@@ -201,10 +201,55 @@ export default {
       response.success(
         res,
         data,
-        "✅ Data absensi caberawit bulanan berhasil diambil"
+        "✅ Data absensi caberawit bulanan berhasil diambil",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil absensi bulanan");
+    }
+  },
+
+  /* =========================
+   🔵 GET REKAP ABSENSI CABERAWIT
+========================= */
+  async getRekapByCaberawit(req: IReqUser, res: Response) {
+    try {
+      const { caberawitId } = req.params;
+
+      if (!caberawitId) {
+        return response.notFound(res, "caberawitId wajib diisi");
+      }
+
+      const data = await prisma.absenCaberawit.groupBy({
+        by: ["status"],
+        where: {
+          caberawitId: Number(caberawitId),
+        },
+        _count: {
+          status: true,
+        },
+      });
+
+      // default value biar ga undefined
+      const result = {
+        HADIR: 0,
+        IZIN: 0,
+        SAKIT: 0,
+        ALPA: 0,
+        TOTAL: 0,
+      };
+
+      data.forEach((item) => {
+        result[item.status as keyof typeof result] = item._count.status;
+        result.TOTAL += item._count.status;
+      });
+
+      response.success(
+        res,
+        result,
+        "✅ Rekap absensi caberawit berhasil diambil",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil rekap absensi caberawit");
     }
   },
 };

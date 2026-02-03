@@ -613,6 +613,13 @@ router.post(
   authMiddleware,
   absenCaberawitController.absenMassal,
 );
+
+router.get(
+  "/absen/caberawit/rekap/:caberawitId",
+  authMiddleware,
+  absenCaberawitController.getRekapByCaberawit,
+);
+
 router.get("/absen", authMiddleware, absenCaberawitController.findByTanggal);
 router.get(
   "/absen/caberawit/bulanan/:caberawitId",
