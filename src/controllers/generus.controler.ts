@@ -287,8 +287,8 @@ export default {
   async findAll(req: IReqUser, res: Response) {
     try {
       const {
-        daerahId,
-        desaId,
+        daerah,
+        desa,
         limit = 10,
         page = 1,
         search,
@@ -301,20 +301,20 @@ export default {
       const where: any = {};
 
       // 🌍 Filter daerah
-      if (daerahId) {
-        where.daerahId = String(daerahId);
+      if (daerah) {
+        where.daerahId = String(daerah);
       }
 
       // 🏘️ Filter desa
-      if (desaId) {
-        where.desaId = String(desaId);
+      if (desa) {
+        where.desaId = String(desa);
       }
 
       // 🔍 Filter nama
       if (search) {
         where.nama = {
           contains: String(search),
-          mode: "insensitive",
+          // mode: "insensitive",
         };
       }
 

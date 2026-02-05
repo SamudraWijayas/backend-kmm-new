@@ -156,7 +156,7 @@ export default {
         jenis_kelamin,
         minUsia,
         maxUsia,
-        jenjang,
+        kelasjenjang,
         daerah,
         desa,
         kelompok,
@@ -175,8 +175,8 @@ export default {
       }
 
       // filter jenjang
-      if (jenjang) {
-        where.jenjangId = jenjang;
+      if (kelasjenjang) {
+        where.kelasJenjangId = kelasjenjang;
       }
 
       if (daerah) {
@@ -263,7 +263,7 @@ export default {
         jenis_kelamin,
         minUsia,
         maxUsia,
-        jenjang,
+        kelasjenjang,
       } = req.query;
 
       // ✅ Filter utama: kelompok
@@ -285,8 +285,8 @@ export default {
       }
 
       // 🎓 Filter jenjang
-      if (jenjang) {
-        where.jenjangId = String(jenjang);
+      if (kelasjenjang) {
+        where.kelasJenjangId = String(kelasjenjang);
       }
 
       // 🎂 Filter usia
@@ -318,6 +318,7 @@ export default {
           desa: true,
           kelompok: true,
           jenjang: true,
+          kelasJenjang: true,
         },
         orderBy: { createdAt: "desc" },
         take: Number(limit),
@@ -563,4 +564,5 @@ export default {
       response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
+  
 };
