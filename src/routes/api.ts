@@ -64,8 +64,50 @@ router.post(
 );
 
 router.put(
+  "/auth/update-profile",
+  [
+    authMiddleware,
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
+  ],
+  authController.updateProfile,
+  /*
+  #swagger.tags = ['Auth']
+  #swagger.security = [{
+    "bearerAuth": {}
+  }]
+  #swagger.requestBody = {
+    required: true,
+    schema: {
+      $ref: "#/components/schemas/UpdateProfileRequest"
+    }
+  }
+  */
+);
+
+router.put(
   "/auth/update-password",
-  [authMiddleware, acl([ROLES.SUPERADMIN, ROLES.ADMIN])],
+  [
+    authMiddleware,
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
+  ],
   authController.updatePassword,
   /*
   #swagger.tags = ['Auth']
@@ -105,6 +147,16 @@ router.post(
 );
 
 router.get("/users", authMiddleware, userController.findAll);
+router.get(
+  "/users/kelompok/:kelompokId",
+  [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
+  userController.findAllByKelompok,
+);
+router.get(
+  "/users/desa/:desaId",
+  [authMiddleware, aclMiddleware([ROLES.DESA, ROLES.SUBDESA])],
+  userController.findAllByDesa,
+);
 router.delete(
   "/users/:id",
   [

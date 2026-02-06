@@ -52,7 +52,7 @@ export default {
             return response.error(
               res,
               null,
-              "❌ daerahId wajib untuk role DAERAH atau SUBDAERAH"
+              "❌ daerahId wajib untuk role DAERAH atau SUBDAERAH",
             );
           validatedData.daerahId = String(daerahId);
           break;
@@ -63,7 +63,7 @@ export default {
             return response.error(
               res,
               null,
-              "❌ desaId wajib untuk role DESA atau SUBDESA"
+              "❌ desaId wajib untuk role DESA atau SUBDESA",
             );
           validatedData.desaId = String(desaId);
           break;
@@ -74,7 +74,7 @@ export default {
             return response.error(
               res,
               null,
-              "❌ kelompokId wajib untuk role KELOMPOK atau SUBKELOMPOK"
+              "❌ kelompokId wajib untuk role KELOMPOK atau SUBKELOMPOK",
             );
           validatedData.kelompokId = String(kelompokId);
           break;
@@ -88,7 +88,7 @@ export default {
           return response.error(
             res,
             null,
-            "❌ Role tidak valid. Gunakan salah satu dari: SUPERADMIN, ADMIN, DAERAH, SUBDAERAH, DESA, SUBDESA, KELOMPOK, SUBKELOMPOK"
+            "❌ Role tidak valid. Gunakan salah satu dari: SUPERADMIN, ADMIN, DAERAH, SUBDAERAH, DESA, SUBDESA, KELOMPOK, SUBKELOMPOK",
           );
       }
 
@@ -187,7 +187,142 @@ export default {
           total,
           totalPages: Math.ceil(total / Number(limit)),
         },
-        "✅ Berhasil mengambil daftar user"
+        "✅ Berhasil mengambil daftar user",
+      );
+    } catch (error) {
+      console.error("❌ findAll error:", error);
+      response.error(res, error, "❌ Gagal mengambil daftar user");
+    }
+  },
+  async findAllByKelompok(req: IReqUser, res: Response) {
+    try {
+      const { kelompokId } = req.params;
+
+      const kelompok = await prisma.kelompok.findUnique({
+        where: { id: String(kelompokId) },
+      });
+
+      if (!kelompok) {
+        return response.notFound(res, "kelompok tidak ditemukan");
+      }
+
+      const { page = 1, limit = 10, search, daerahId } = req.query;
+
+      const where: any = {
+        kelompokId: String(kelompokId),
+      };
+
+      // 🔍 Filter search
+      if (search) {
+        where.OR = [
+          {
+            fullName: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+          {
+            username: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+
+      // 📍 Filter daerah
+      if (daerahId) {
+        where.daerahId = String(daerahId);
+      }
+
+      const users = await prisma.user.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.user.count({ where });
+
+      return response.pagination(
+        res,
+        users,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar user",
+      );
+    } catch (error) {
+      console.error("❌ findAll error:", error);
+      response.error(res, error, "❌ Gagal mengambil daftar user");
+    }
+  },
+  async findAllByDesa(req: IReqUser, res: Response) {
+    try {
+      const { desaId } = req.params;
+
+      const desa = await prisma.desa.findUnique({
+        where: { id: String(desaId) },
+      });
+
+      if (!desa) {
+        return response.notFound(res, "desa tidak ditemukan");
+      }
+
+      const { page = 1, limit = 10, search } = req.query;
+
+      const where: any = {
+        desaId: String(desaId),
+      };
+
+      // 🔍 Filter search
+      if (search) {
+        where.OR = [
+          {
+            fullName: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+          {
+            username: {
+              contains: String(search),
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+
+      const users = await prisma.user.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.user.count({ where });
+
+      return response.pagination(
+        res,
+        users,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar user",
       );
     } catch (error) {
       console.error("❌ findAll error:", error);
@@ -230,6 +365,92 @@ export default {
       response.success(res, result, "success update user");
     } catch (error) {
       response.error(res, error, "failed to update user");
+    }
+  },
+  // 🟠 UPDATE PASSWORD
+  async updatePassword(req: IReqUser, res: Response) {
+    try {
+      const { id } = req.params;
+      const { oldPassword, password, confirmPassword } = req.body;
+
+      // 🔍 Validasi input
+      if (!password || !confirmPassword) {
+        return response.error(
+          res,
+          null,
+          "❌ Password dan konfirmasi wajib diisi",
+        );
+      }
+
+      if (password !== confirmPassword) {
+        return response.error(
+          res,
+          null,
+          "❌ Password dan konfirmasi tidak sama",
+        );
+      }
+
+      // 🔍 Cari user
+      const user = await prisma.user.findUnique({
+        where: { id: Number(id) },
+      });
+
+      if (!user) {
+        return response.notFound(res, "user not found");
+      }
+
+      // 🔐 Cek password lama (jika dikirim)
+      if (oldPassword) {
+        const encryptedOld = encrypt(oldPassword);
+        if (user.password !== encryptedOld) {
+          return response.error(res, null, "❌ Password lama salah");
+        }
+      }
+
+      // 🔐 Update password
+      const updated = await prisma.user.update({
+        where: { id: Number(id) },
+        data: {
+          password: encrypt(password),
+        },
+      });
+
+      response.success(res, updated, "✅ Password berhasil diperbarui");
+    } catch (error) {
+      console.error("❌ Update password error:", error);
+      response.error(res, error, "❌ Gagal memperbarui password");
+    }
+  },
+
+  async resetPassword(req: IReqUser, res: Response) {
+    try {
+      const { id } = req.params;
+      const { password, confirmPassword } = req.body;
+
+      if (!password || !confirmPassword) {
+        return response.error(res, null, "❌ Password wajib diisi");
+      }
+
+      if (password !== confirmPassword) {
+        return response.error(res, null, "❌ Password tidak sama");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: Number(id) },
+      });
+
+      if (!user) return response.notFound(res, "user not found");
+
+      const updated = await prisma.user.update({
+        where: { id: Number(id) },
+        data: {
+          password: encrypt(password),
+        },
+      });
+
+      response.success(res, updated, "✅ Password berhasil di-reset");
+    } catch (error) {
+      response.error(res, error, "❌ Gagal reset password");
     }
   },
 

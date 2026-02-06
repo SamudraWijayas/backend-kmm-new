@@ -86,6 +86,7 @@ export default {
       gol_darah,
       nama_ortu,
       foto,
+      waliId,
     } = req.body;
 
     try {
@@ -104,17 +105,22 @@ export default {
       });
 
       // ✅ Pastikan semua foreign key valid
-      const [daerah, desa, kelompok, jenjang] = await Promise.all([
+      const [daerah, desa, kelompok, jenjang, wali] = await Promise.all([
         prisma.daerah.findUnique({ where: { id: daerahId } }),
         prisma.desa.findUnique({ where: { id: desaId } }),
         prisma.kelompok.findUnique({ where: { id: kelompokId } }),
         prisma.jenjang.findUnique({ where: { id: jenjangId } }),
+        waliId
+          ? prisma.user.findUnique({ where: { id: Number(waliId) } })
+          : null,
       ]);
 
       if (!daerah) return response.notFound(res, "Daerah tidak ditemukan");
       if (!desa) return response.notFound(res, "Desa tidak ditemukan");
       if (!kelompok) return response.notFound(res, "Kelompok tidak ditemukan");
       if (!jenjang) return response.notFound(res, "Jenjang tidak ditemukan");
+      if (waliId && !wali)
+        return response.notFound(res, "Wali tidak ditemukan");
 
       // ✅ Simpan data
       const newCaberawit = await prisma.caberawit.create({
@@ -131,12 +137,14 @@ export default {
           nama_ortu,
 
           foto,
+          ...(waliId ? { waliId: Number(waliId) } : {}),
         },
         include: {
           daerah: true,
           desa: true,
           kelompok: true,
           jenjang: true,
+          wali: true,
         },
       });
 
@@ -483,8 +491,11 @@ export default {
           kelompok: { connect: { id: kelompokId } },
           jenjang: { connect: { id: jenjangId } },
           kelasJenjang: { connect: { id: kelasJenjangId } },
-          wali: { connect: { id: Number(waliId) } },
-          tgl_lahir: new Date(tgl_lahir),
+
+          ...(waliId ? { wali: { connect: { id: Number(waliId) } } } : {}),
+
+          ...(tgl_lahir && { tgl_lahir: new Date(tgl_lahir) }),
+
           jenis_kelamin,
           gol_darah,
           nama_ortu,
