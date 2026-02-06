@@ -478,6 +478,18 @@ router.delete(
 );
 
 // ================== Caberawit ==================
+
+router.patch(
+  "/caberawit/assign-wali",
+  [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
+  caberawitController.assignWali,
+);
+router.patch(
+  "/caberawit/unassign-wali",
+  [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
+  caberawitController.unassignWali,
+);
+
 router.post(
   "/caberawit",
   [
@@ -494,6 +506,12 @@ router.get(
   ],
   caberawitController.findAll,
 );
+router.get(
+  "/caberawit/by-wali",
+  [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
+  caberawitController.findAllByWali,
+);
+
 router.get(
   "/caberawit/:kelompokId",
   authMiddleware,

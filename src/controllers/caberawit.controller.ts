@@ -319,6 +319,7 @@ export default {
           kelompok: true,
           jenjang: true,
           kelasJenjang: true,
+          wali: true,
         },
         orderBy: { createdAt: "desc" },
         take: Number(limit),
@@ -564,5 +565,225 @@ export default {
       response.error(res, error, "❌ Gagal menghitung jumlah mumi");
     }
   },
-  
+  async assignWali(req: IReqUser, res: Response) {
+    try {
+      const waliId = req.user?.id;
+      const { caberawitIds } = req.body;
+
+      if (!waliId) {
+        return response.unauthorized(res, "User tidak valid");
+      }
+
+      if (!Array.isArray(caberawitIds) || caberawitIds.length === 0) {
+        return response.notFound(res, "Pilih minimal satu Caberawit");
+      }
+
+      const result = await prisma.caberawit.updateMany({
+        where: {
+          id: { in: caberawitIds },
+        },
+        data: {
+          waliId,
+        },
+      });
+
+      return response.success(
+        res,
+        {
+          updatedCount: result.count,
+        },
+        "✅ Wali berhasil ditetapkan ke Caberawit terpilih",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal menetapkan wali Caberawit");
+    }
+  },
+
+  // async toggleWali(req: IReqUser, res: Response) {
+  //   try {
+  //     const waliId = req.user?.id;
+  //     const { caberawitIds } = req.body;
+
+  //     if (!waliId) {
+  //       return response.unauthorized(res, "User tidak valid");
+  //     }
+
+  //     if (!Array.isArray(caberawitIds) || caberawitIds.length === 0) {
+  //       return response.notFound(res, "Pilih minimal satu Caberawit");
+  //     }
+
+  //     // Ambil data dulu
+  //     const caberawits = await prisma.caberawit.findMany({
+  //       where: { id: { in: caberawitIds } },
+  //       select: { id: true, waliId: true },
+  //     });
+
+  //     const toAssign: number[] = [];
+  //     const toUnassign: number[] = [];
+
+  //     for (const c of caberawits) {
+  //       if (!c.waliId) {
+  //         toAssign.push(c.id); // belum ada wali → assign
+  //       } else if (c.waliId === waliId) {
+  //         toUnassign.push(c.id); // wali sama → lepas
+  //       } else {
+  //         return response.unauthorized(
+  //           res,
+  //           "Ada Caberawit yang bukan tanggung jawab kamu",
+  //         );
+  //       }
+  //     }
+
+  //     if (toAssign.length) {
+  //       await prisma.caberawit.updateMany({
+  //         where: { id: { in: toAssign } },
+  //         data: { waliId },
+  //       });
+  //     }
+
+  //     if (toUnassign.length) {
+  //       await prisma.caberawit.updateMany({
+  //         where: { id: { in: toUnassign } },
+  //         data: { waliId: null },
+  //       });
+  //     }
+
+  //     return response.success(
+  //       res,
+  //       {
+  //         assigned: toAssign.length,
+  //         unassigned: toUnassign.length,
+  //       },
+  //       "✅ Data wali berhasil diperbarui",
+  //     );
+  //   } catch (error) {
+  //     response.error(res, error, "❌ Gagal update wali Caberawit");
+  //   }
+  // },
+
+  async unassignWali(req: IReqUser, res: Response) {
+    try {
+      const waliId = req.user?.id;
+      const { caberawitIds } = req.body;
+
+      if (!waliId) {
+        return response.unauthorized(res, "User tidak valid");
+      }
+
+      if (!Array.isArray(caberawitIds) || caberawitIds.length === 0) {
+        return response.notFound(res, "Pilih minimal satu Caberawit");
+      }
+
+      const result = await prisma.caberawit.updateMany({
+        where: {
+          id: { in: caberawitIds },
+          waliId, // 🔒 pastikan hanya wali tsb
+        },
+        data: {
+          waliId: null, // 🔥 lepas wali
+        },
+      });
+
+      return response.success(
+        res,
+        { updatedCount: result.count },
+        "✅ Wali berhasil dilepas dari Caberawit terpilih",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal melepas wali Caberawit");
+    }
+  },
+
+  async findAllByWali(req: IReqUser, res: Response) {
+    try {
+      const waliId = req.user?.id;
+
+      const {
+        limit = 999,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        kelasjenjang,
+        daerah,
+        desa,
+        kelompok,
+      } = req.query;
+
+      const where: any = {
+        waliId,
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Kelas / jenjang
+      if (kelasjenjang) {
+        where.kelasJenjangId = String(kelasjenjang);
+      }
+
+      // 🌍 Lokasi (opsional, kalau wali lintas wilayah)
+      if (daerah) where.daerahId = String(daerah);
+      if (desa) where.desaId = String(desa);
+      if (kelompok) where.kelompokId = String(kelompok);
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+        where.tgl_lahir = {};
+
+        if (maxUsia) {
+          const minDate = new Date(today);
+          minDate.setFullYear(today.getFullYear() - Number(maxUsia));
+          where.tgl_lahir.gte = minDate;
+        }
+
+        if (minUsia) {
+          const maxDate = new Date(today);
+          maxDate.setFullYear(today.getFullYear() - Number(minUsia));
+          where.tgl_lahir.lte = maxDate;
+        }
+      }
+
+      const list = await prisma.caberawit.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+          kelasJenjang: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.caberawit.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar Caberawit wali",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil Caberawit wali");
+    }
+  },
 };
