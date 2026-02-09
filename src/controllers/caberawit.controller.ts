@@ -350,6 +350,106 @@ export default {
       response.error(res, error, "❌ Gagal mengambil daftar Caberawit");
     }
   },
+  async findAllByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      // ✅ validasi daerah
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const {
+        limit = 10,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        kelasjenjang,
+      } = req.query;
+
+      // ✅ filter utama: DAERAH
+      const where: any = {
+        daerahId: String(daerahId),
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Filter jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Filter kelas jenjang
+      if (kelasjenjang) {
+        where.kelasJenjangId = String(kelasjenjang);
+      }
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+        where.tgl_lahir = {};
+
+        if (maxUsia) {
+          const minDate = new Date(today);
+          minDate.setFullYear(today.getFullYear() - Number(maxUsia));
+          where.tgl_lahir.gte = minDate;
+        }
+
+        if (minUsia) {
+          const maxDate = new Date(today);
+          maxDate.setFullYear(today.getFullYear() - Number(minUsia));
+          where.tgl_lahir.lte = maxDate;
+        }
+      }
+
+      const list = await prisma.caberawit.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+          kelasJenjang: true,
+          wali: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.caberawit.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        `✅ Berhasil mengambil Caberawit di daerah ${daerah.name}`,
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil Caberawit berdasarkan daerah",
+      );
+    }
+  },
+
   async findAllByDesa(req: IReqUser, res: Response) {
     try {
       const { desaId } = req.params;

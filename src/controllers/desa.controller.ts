@@ -41,7 +41,7 @@ export default {
       if (existing) {
         return response.conflict(
           res,
-          "Nama desa sudah terdaftar di daerah ini"
+          "Nama desa sudah terdaftar di daerah ini",
         );
       }
 
@@ -104,10 +104,64 @@ export default {
           total,
           totalPages: Math.ceil(total / +limit),
         },
-        "✅ Berhasil mengambil daftar desa"
+        "✅ Berhasil mengambil daftar desa",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar desa");
+    }
+  },
+
+  async findByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+      const { limit = 15, page = 1, search } = req.query;
+
+      if (!daerahId) {
+        return response.error(res, null, "❌ daerahId wajib diisi");
+      }
+
+      // ✅ Pastikan daerah ada
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const where: any = {
+        daerahId: String(daerahId),
+      };
+
+      if (search) {
+        where.name = { contains: String(search) };
+      }
+
+      const desaList = await prisma.desa.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        take: +limit,
+        skip: (+page - 1) * +limit,
+      });
+
+      const total = await prisma.desa.count({ where });
+
+      return response.pagination(
+        res,
+        desaList,
+        {
+          current: +page,
+          total,
+          totalPages: Math.ceil(total / +limit),
+        },
+        `✅ Berhasil mengambil desa di daerah ${daerah.name}`,
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil desa berdasarkan daerah",
+      );
     }
   },
   // 🔵 Detail desa
@@ -162,7 +216,7 @@ export default {
       if (existing)
         return response.conflict(
           res,
-          "Nama desa sudah terdaftar di daerah ini"
+          "Nama desa sudah terdaftar di daerah ini",
         );
 
       // ✅ Update data
@@ -210,10 +264,47 @@ export default {
       return response.success(
         res,
         { total: totalDesa },
-        `✅ Total semua desa: ${totalDesa}`
+        `✅ Total semua desa: ${totalDesa}`,
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal menghitung jumlah desa");
+    }
+  },
+  // 🧮 Hitung desa berdasarkan daerahId
+  async countDesaByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      if (!daerahId) {
+        return response.error(res, null, "❌ daerahId wajib diisi");
+      }
+
+      // ✅ Pastikan daerah ada
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const totalDesa = await prisma.desa.count({
+        where: {
+          daerahId: String(daerahId),
+        },
+      });
+
+      return response.success(
+        res,
+        {
+          daerahId,
+          daerahNama: daerah.name,
+          total: totalDesa,
+        },
+        `Total desa di daerah ${daerah.name}: ${totalDesa}`,
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal menghitung desa berdasarkan daerah");
     }
   },
 };

@@ -138,6 +138,60 @@ export default {
     }
   },
 
+  async findByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+      const { limit = 15, page = 1, search } = req.query;
+
+      if (!daerahId) {
+        return response.error(res, null, "❌ daerahId wajib diisi");
+      }
+
+      // ✅ Pastikan daerah ada
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const where: any = {
+        daerahId: String(daerahId),
+      };
+
+      if (search) {
+        where.name = { contains: String(search) };
+      }
+
+      const kelompokList = await prisma.kelompok.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        take: +limit,
+        skip: (+page - 1) * +limit,
+      });
+
+      const total = await prisma.kelompok.count({ where });
+
+      return response.pagination(
+        res,
+        kelompokList,
+        {
+          current: +page,
+          total,
+          totalPages: Math.ceil(total / +limit),
+        },
+        `✅ Berhasil mengambil kelompok di daerah ${daerah.name}`,
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil kelompok berdasarkan daerah",
+      );
+    }
+  },
+
   // 🔵 Detail kelompok
   async findOne(req: IReqUser, res: Response) {
     const { id } = req.params;
@@ -328,6 +382,43 @@ export default {
         error,
         "❌ Gagal mengambil kelompok berdasarkan desa",
       );
+    }
+  },
+
+  async countKelompokByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      if (!daerahId) {
+        return response.error(res, null, "❌ daerahId wajib diisi");
+      }
+
+      // ✅ Pastikan daerah ada
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const totalKelompok = await prisma.kelompok.count({
+        where: {
+          daerahId: String(daerahId),
+        },
+      });
+
+      return response.success(
+        res,
+        {
+          daerahId,
+          daerahNama: daerah.name,
+          total: totalKelompok,
+        },
+        `Total desa di daerah ${daerah.name}: ${totalKelompok}`,
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal menghitung desa berdasarkan daerah");
     }
   },
 };

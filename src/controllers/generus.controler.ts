@@ -378,6 +378,108 @@ export default {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
     }
   },
+  async findAllByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      // ✅ validasi daerah
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Daerah tidak ditemukan");
+      }
+
+      const {
+        limit = 10,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        jenjang,
+      } = req.query;
+
+      // ✅ WAJIB: filter daerah
+      const where: any = {
+        daerahId: String(daerahId),
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Filter jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Filter jenjang
+      if (jenjang) {
+        where.jenjangId = String(jenjang);
+      }
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+
+        let tanggalLahirMin: Date | undefined;
+        let tanggalLahirMax: Date | undefined;
+
+        if (maxUsia) {
+          tanggalLahirMin = new Date(today);
+          tanggalLahirMin.setFullYear(today.getFullYear() - Number(maxUsia));
+        }
+
+        if (minUsia) {
+          tanggalLahirMax = new Date(today);
+          tanggalLahirMax.setFullYear(today.getFullYear() - Number(minUsia));
+        }
+
+        where.tgl_lahir = {};
+        if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
+        if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
+      }
+
+      const list = await prisma.mumi.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.mumi.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        `✅ Berhasil mengambil generus di daerah ${daerah.name}`,
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil generus berdasarkan daerah",
+      );
+    }
+  },
+
   async findAllByMahasiswaDesa(req: IReqUser, res: Response) {
     try {
       const { desaId } = req.params;
@@ -695,6 +797,118 @@ export default {
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil data statistik jenjang");
+    }
+  },
+  // 📊 Jumlah Generus per Jenjang per Desa
+  async statistikMumibyDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "Desa tidak ditemukan");
+      }
+
+      const data = await prisma.mumi.groupBy({
+        by: ["desaId", "jenjangId"],
+        where: {
+          daerahId: String(daerahId),
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const desaIds = [...new Set(data.map((d) => d.desaId))];
+      const jenjangIds = [...new Set(data.map((d) => d.jenjangId))];
+
+      const [desaList, jenjangList] = await Promise.all([
+        prisma.desa.findMany({ where: { id: { in: desaIds } } }),
+        prisma.jenjang.findMany({ where: { id: { in: jenjangIds } } }),
+      ]);
+
+      const result = data.map((item) => {
+        const desa = desaList.find((k) => k.id === item.desaId);
+        const jenjang = jenjangList.find((j) => j.id === item.jenjangId);
+
+        return {
+          desaId: item.desaId,
+          desaNama: desa?.name || "-",
+          jenjangId: item.jenjangId,
+          jenjangNama: jenjang?.name || "-",
+          total: item._count._all,
+        };
+      });
+
+      return response.success(
+        res,
+        result,
+        "✅ Statistik generus per jenjang & desa berdasarkan daerah",
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil statistik jenjang per kelompok desa",
+      );
+    }
+  },
+  async countStatsByDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      // ✅ Validasi kelompok
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "daerah tidak ditemukan");
+      }
+
+      // 📊 Group by jenjang DI DALAM daerah
+      const data = await prisma.mumi.groupBy({
+        by: ["jenjangId"],
+        where: {
+          daerahId: String(daerahId),
+        },
+        _count: {
+          _all: true,
+        },
+      });
+
+      const jenjangIds = data.map((d) => d.jenjangId);
+
+      const jenjangList = await prisma.jenjang.findMany({
+        where: {
+          id: { in: jenjangIds },
+        },
+      });
+
+      const result = data.map((item) => {
+        const jenjang = jenjangList.find((j) => j.id === item.jenjangId);
+
+        return {
+          jenjangId: item.jenjangId,
+          jenjangNama: jenjang?.name || "-",
+          total: item._count._all,
+        };
+      });
+
+      return response.success(
+        res,
+        result,
+        "✅ Statistik generus per jenjang berdasarkan daerah",
+      );
+    } catch (error) {
+      response.error(
+        res,
+        error,
+        "❌ Gagal mengambil statistik generus per jenjang daerah",
+      );
     }
   },
   // 📊 Jumlah Generus per Jenjang per Kelompok (by Desa)

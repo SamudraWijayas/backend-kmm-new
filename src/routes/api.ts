@@ -146,7 +146,25 @@ router.post(
   userController.addUser,
 );
 
-router.get("/users", authMiddleware, userController.findAll);
+router.get(
+  "/users",
+  [
+    authMiddleware,
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
+  ],
+  authMiddleware,
+  userController.findAll,
+);
+
 router.get(
   "/users/kelompok/:kelompokId",
   [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
@@ -171,7 +189,16 @@ router.post(
   "/media/upload-single",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
     mediaMiddleware.single("file"),
   ],
   mediaController.single,
@@ -202,8 +229,17 @@ router.post(
   "/media/upload-multiple",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
-    mediaMiddleware.multiple("files"),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
+    mediaMiddleware.single("files"),
   ],
   mediaController.multiple,
   /*
@@ -315,6 +351,12 @@ router.post(
 
 router.get("/desa", authMiddleware, desaController.findAll);
 
+router.get(
+  "/desa/daerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  desaController.findByDaerah,
+);
+
 router.put(
   "/desa/:id",
   [authMiddleware, aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH])],
@@ -340,6 +382,12 @@ router.get(
   kelompokController.findByDesa,
 );
 
+router.get(
+  "/kelompok/daerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  kelompokController.findByDaerah,
+);
+
 router.put(
   "/kelompok/:id",
   [authMiddleware, aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH])],
@@ -358,7 +406,16 @@ router.get(
   "/absen/:kegiatanId",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   absenController.findByKegiatan,
 );
@@ -377,7 +434,16 @@ router.get(
   "/kegiatan",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   kegiatanController.findAll,
 );
@@ -391,7 +457,16 @@ router.get(
   "/kegiatan/:id",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   kegiatanController.findOne,
 );
@@ -467,11 +542,51 @@ router.post(
   "/generus",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   generusController.addGenerus,
 );
-router.get("/generus", authMiddleware, generusController.findAll);
+router.get(
+  "/generus",
+  [
+    authMiddleware,
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
+  ],
+  generusController.findAll,
+);
+router.get(
+  "/generus/daerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  generusController.findAllByDaerah,
+);
+router.get(
+  "/generus/statistik/jenjang/daerah/:daerahId",
+  authMiddleware,
+  generusController.statistikMumibyDaerah,
+);
+router.get(
+  "/generus/count/statistik/jenjang/daerah/:daerahId",
+  authMiddleware,
+  generusController.countStatsByDaerah,
+);
 router.get(
   "/generus/statistik/jenjang/desa/:desaId",
   authMiddleware,
@@ -516,7 +631,16 @@ router.put(
   "/generus/:id",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   generusController.update,
 );
@@ -546,7 +670,16 @@ router.post(
   "/caberawit",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   caberawitController.addCaberawit,
 );
@@ -554,10 +687,25 @@ router.get(
   "/caberawit",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   caberawitController.findAll,
 );
+router.get(
+  "/caberawit/daerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  caberawitController.findAllByDaerah,
+);
+
 router.get(
   "/caberawit/by-wali",
   [authMiddleware, aclMiddleware([ROLES.KELOMPOK, ROLES.SUBKELOMPOK])],
@@ -592,7 +740,16 @@ router.put(
   "/caberawit/:id",
   [
     authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+    aclMiddleware([
+      ROLES.SUPERADMIN,
+      ROLES.ADMIN,
+      ROLES.DAERAH,
+      ROLES.SUBDAERAH,
+      ROLES.DESA,
+      ROLES.SUBDESA,
+      ROLES.KELOMPOK,
+      ROLES.SUBKELOMPOK,
+    ]),
   ],
   caberawitController.update,
 );
@@ -607,7 +764,17 @@ router.delete(
 
 // ====== Count ======
 router.get("/count/daerah", authMiddleware, daerahController.countDaerah);
-router.get("/count/desa", authMiddleware, desaController.countDesa);
+router.get("/count/daerah", authMiddleware, daerahController.countDaerah);
+router.get(
+  "/count/desa-bydaerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  desaController.countDesaByDaerah,
+);
+router.get(
+  "/count/kelompok-bydaerah/:daerahId",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  kelompokController.countKelompokByDaerah,
+);
 router.get("/count/kelompok", authMiddleware, kelompokController.countKelompok);
 router.get("/count/mumi", authMiddleware, generusController.countMumi);
 router.get(
