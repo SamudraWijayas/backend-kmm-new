@@ -31,6 +31,17 @@ const kegiatanAddDTO = Yup.object({
   maxUsia: Yup.number().nullable(),
 });
 
+function hitungUmur(tglLahir: Date) {
+  const today = new Date();
+  let umur = today.getFullYear() - tglLahir.getFullYear();
+  const m = today.getMonth() - tglLahir.getMonth();
+
+  if (m < 0 || (m === 0 && today.getDate() < tglLahir.getDate())) {
+    umur--;
+  }
+  return umur;
+}
+
 export default {
   // ✅ Tambah kegiatan baru
   async addKegiatan(req: IReqUser, res: Response) {
@@ -115,6 +126,7 @@ export default {
               },
             },
           },
+          dokumentasi: true,
         },
         orderBy: { createdAt: "desc" },
       });
@@ -141,6 +153,7 @@ export default {
           desa: true,
           kelompok: true,
           sasaran: { include: { jenjang: true } },
+          dokumentasi: true,
         },
       });
 
@@ -267,25 +280,18 @@ export default {
       startDate,
       endDate,
       tingkat,
+      targetType,
+      jenisKelamin = "SEMUA",
       daerahId,
       desaId,
       kelompokId,
-      jenjangIds,
+      jenjangIds = [],
+      minUsia,
+      maxUsia,
+      dokumentasi = [],
     } = req.body;
 
     try {
-      await kegiatanAddDTO.validate({
-        name,
-        startDate,
-        endDate,
-        tingkat,
-        daerahId,
-        desaId,
-        kelompokId,
-        jenjangIds,
-      });
-
-      // Validasi tingkat
       if (tingkat === "DAERAH" && !daerahId) {
         return response.error(
           res,
@@ -308,7 +314,7 @@ export default {
         );
       }
 
-      // Update data kegiatan + hapus relasi lama dulu
+      // Update kegiatan
       const updated = await prisma.kegiatan.update({
         where: { id: String(id) },
         data: {
@@ -316,16 +322,34 @@ export default {
           startDate: new Date(startDate),
           endDate: new Date(endDate),
           tingkat,
+          targetType,
+          jenisKelamin,
           daerahId: daerahId ?? null,
           desaId: desaId ?? null,
           kelompokId: kelompokId ?? null,
+          minUsia: targetType === "USIA" ? minUsia : null,
+          maxUsia: targetType === "USIA" ? maxUsia : null,
+
+          // Update sasaran jenjang
           sasaran: {
             deleteMany: {}, // hapus relasi lama
-            create: jenjangIds.map((id: string) => ({ jenjangId: id })),
+            create:
+              targetType === "JENJANG"
+                ? jenjangIds.map((id: string) => ({ jenjangId: id }))
+                : [],
+          },
+
+          // Update dokumentasi langsung dari URL yang dikirim frontend
+          dokumentasi: {
+            deleteMany: {}, // hapus dokumentasi lama
+            create: dokumentasi.map((d: { url: string }) => ({
+              url: d.url,
+            })),
           },
         },
         include: {
           sasaran: { include: { jenjang: true } },
+          dokumentasi: true,
         },
       });
 
@@ -335,6 +359,37 @@ export default {
     }
   },
 
+  // ✅ Update dokumentasi kegiatan saja
+  async updateDokumentasi(req: IReqUser, res: Response) {
+    const { id } = req.params;
+    const { dokumentasi = [] } = req.body; // array string URL dari frontend
+
+    try {
+      if (!Array.isArray(dokumentasi)) {
+        return response.error(res, null, "dokumentasi harus berupa array");
+      }
+
+      const updated = await prisma.kegiatan.update({
+        where: { id: String(id) },
+        data: {
+          dokumentasi: {
+            deleteMany: {}, // hapus dokumentasi lama
+            create: dokumentasi.map((d: string | { url: string }) =>
+              typeof d === "string" ? { url: d } : { url: d.url },
+            ),
+          },
+        },
+        include: {
+          dokumentasi: true,
+        },
+      });
+
+      response.success(res, updated, "✅ Berhasil memperbarui dokumentasi!");
+    } catch (error) {
+      console.error(error);
+      response.error(res, error, "❌ Gagal memperbarui dokumentasi");
+    }
+  },
   // ✅ Hapus kegiatan
   async remove(req: IReqUser, res: Response) {
     const { id } = req.params;
@@ -356,125 +411,164 @@ export default {
 
   // login generus
 
-  async findByDaerah(req: IReqMumi, res: Response) {
+  async findAuthMumiByDaerah(req: IReqMumi, res: Response) {
     try {
-      const daerahId = req.user?.daerahId;
-      const userJenjangId = req.user?.jenjangId;
-      const { tanggal } = req.query; // ambil dari query params, misal ?tanggal=2025-12-24T00:31:00.000Z
+      const mumi = req.user;
+      const { tanggal } = req.query;
 
-      if (!daerahId) {
+      if (!mumi?.daerahId) {
         return response.notFound(res, "User tidak memiliki daerah terkait");
       }
-      if (!userJenjangId) {
-        return response.notFound(res, "User tidak memiliki jenjang terkait");
-      }
 
-      const whereClause: any = {
-        daerahId: daerahId,
-        sasaran: {
-          some: {
-            jenjangId: userJenjangId,
-          },
-        },
+      const whereKegiatan: any = {
+        daerahId: mumi.daerahId,
       };
 
+      // 📅 Filter tanggal (opsional)
       if (tanggal) {
         const tgl = new Date(tanggal as string);
-        const startOfDay = new Date(tgl);
-        startOfDay.setHours(0, 0, 0, 0); // 00:00:00
-        const endOfDay = new Date(tgl);
-        endOfDay.setHours(23, 59, 59, 999); // 23:59:59
+        const start = new Date(tgl.setHours(0, 0, 0, 0));
+        const end = new Date(tgl.setHours(23, 59, 59, 999));
 
-        whereClause.startDate = { gte: startOfDay, lte: endOfDay }; // ambil semua kegiatan di tanggal itu
+        whereKegiatan.startDate = { gte: start, lte: end };
       }
 
+      // 📦 Ambil semua kegiatan di daerah
       const kegiatanList = await prisma.kegiatan.findMany({
-        where: whereClause,
+        where: whereKegiatan,
         include: {
-          daerah: { select: { id: true, name: true } },
-          desa: { select: { id: true, name: true } },
-          kelompok: { select: { id: true, name: true } },
+          sasaran: true,
         },
-        orderBy: {
-          startDate: "desc",
-        },
+        orderBy: { startDate: "desc" },
+      });
+
+      // 🧠 Filter berdasarkan TARGET
+      const hasil = kegiatanList.filter((kegiatan) => {
+        // 1️⃣ JENJANG
+        if (kegiatan.targetType === "JENJANG") {
+          return kegiatan.sasaran.some((s) => s.jenjangId === mumi.jenjangId);
+        }
+
+        // 2️⃣ MAHASISWA
+        if (kegiatan.targetType === "MAHASISWA") {
+          return mumi.mahasiswa === true;
+        }
+
+        // 3️⃣ USIA
+        if (kegiatan.targetType === "USIA" && mumi.tgl_lahir) {
+          const umur = hitungUmur(new Date(mumi.tgl_lahir));
+          return (
+            umur >= (kegiatan.minUsia ?? 0) && umur <= (kegiatan.maxUsia ?? 200)
+          );
+        }
+
+        return false;
       });
 
       response.success(
         res,
-        kegiatanList,
-        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user",
+        hasil,
+        "✅ Berhasil mengambil kegiatan sesuai target MUMI",
       );
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengambil kegiatan desa");
+      response.error(res, error, "❌ Gagal mengambil kegiatan");
     }
   },
-  async findByDesa(req: IReqMumi, res: Response) {
+
+  async findAuthMumiByDesa(req: IReqMumi, res: Response) {
     try {
-      const desaId = req.user?.desaId;
-      const userJenjangId = req.user?.jenjangId;
-      const { tanggal } = req.query; // misal ?tanggal=2025-12-24T00:31:00.000Z
+      const mumi = req.user;
+      const { tanggal } = req.query;
 
-      if (!desaId) {
-        return response.notFound(res, "User tidak memiliki desa terkait");
-      }
-      if (!userJenjangId) {
-        return response.notFound(res, "User tidak memiliki jenjang terkait");
+      if (!mumi?.daerahId) {
+        return response.notFound(res, "User tidak memiliki daerah terkait");
       }
 
-      const whereClause: any = {
-        desaId: desaId,
-        sasaran: {
-          some: {
-            jenjangId: userJenjangId,
-          },
-        },
+      const whereKegiatan: any = {
+        desaId: mumi.desaId,
       };
 
+      // 📅 Filter tanggal (opsional)
       if (tanggal) {
         const tgl = new Date(tanggal as string);
-        const startOfDay = new Date(tgl);
-        startOfDay.setHours(0, 0, 0, 0); // 00:00:00
-        const endOfDay = new Date(tgl);
-        endOfDay.setHours(23, 59, 59, 999); // 23:59:59
+        const start = new Date(tgl.setHours(0, 0, 0, 0));
+        const end = new Date(tgl.setHours(23, 59, 59, 999));
 
-        whereClause.startDate = { gte: startOfDay, lte: endOfDay }; // ambil semua kegiatan di tanggal itu
+        whereKegiatan.startDate = { gte: start, lte: end };
       }
 
+      // 📦 Ambil semua kegiatan di daerah
       const kegiatanList = await prisma.kegiatan.findMany({
-        where: whereClause,
+        where: whereKegiatan,
         include: {
-          daerah: { select: { id: true, name: true } },
-          desa: { select: { id: true, name: true } },
-          kelompok: { select: { id: true, name: true } },
-          sasaran: {
-            include: {
-              jenjang: { select: { id: true, name: true } },
-            },
-          },
+          sasaran: true,
         },
-        orderBy: { startDate: "asc" },
+        orderBy: { startDate: "desc" },
+      });
+
+      // 🧠 Filter berdasarkan TARGET
+      const hasil = kegiatanList.filter((kegiatan) => {
+        // 1️⃣ JENJANG
+        if (kegiatan.targetType === "JENJANG") {
+          return kegiatan.sasaran.some((s) => s.jenjangId === mumi.jenjangId);
+        }
+
+        // 2️⃣ MAHASISWA
+        if (kegiatan.targetType === "MAHASISWA") {
+          return mumi.mahasiswa === true;
+        }
+
+        // 3️⃣ USIA
+        if (kegiatan.targetType === "USIA" && mumi.tgl_lahir) {
+          const umur = hitungUmur(new Date(mumi.tgl_lahir));
+          return (
+            umur >= (kegiatan.minUsia ?? 0) && umur <= (kegiatan.maxUsia ?? 200)
+          );
+        }
+
+        return false;
       });
 
       response.success(
         res,
-        kegiatanList,
-        "✅ Berhasil mengambil kegiatan desa sesuai jenjang user",
+        hasil,
+        "✅ Berhasil mengambil kegiatan sesuai target MUMI",
       );
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengambil kegiatan desa");
+      response.error(res, error, "❌ Gagal mengambil kegiatan");
     }
   },
 
   async findAllByFilter(req: IReqUser, res: Response) {
     try {
       const { daerahId, desaId, kelompokId } = req.query;
+
       const where: any = {};
 
       if (daerahId) {
-        where.daerahId = String(daerahId);
+        where.OR = [
+          // 1️⃣ Kegiatan level daerah
+          {
+            daerahId: String(daerahId),
+          },
+
+          // 2️⃣ Kegiatan level desa di daerah tsb
+          {
+            desa: {
+              daerahId: String(daerahId),
+            },
+          },
+
+          // 3️⃣ Kegiatan level kelompok di daerah tsb
+          {
+            kelompok: {
+              daerahId: String(daerahId),
+            },
+          },
+        ];
       }
 
+      // 🔹 Filter spesifik (opsional & override)
       if (desaId) {
         where.desaId = String(desaId);
       }
@@ -492,10 +586,7 @@ export default {
           sasaran: {
             select: {
               jenjang: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+                select: { id: true, name: true },
               },
             },
           },
@@ -506,10 +597,57 @@ export default {
       response.success(
         res,
         kegiatanList,
-        "✅ Berhasil mengambil semua kegiatan",
+        "✅ Berhasil mengambil semua kegiatan berdasarkan daerah",
       );
     } catch (error) {
       response.error(res, error, "❌ Gagal mengambil daftar kegiatan");
     }
   },
+
+  // async findAllByFilter(req: IReqUser, res: Response) {
+  //   try {
+  //     const { daerahId, desaId, kelompokId } = req.query;
+  //     const where: any = {};
+
+  //     if (daerahId) {
+  //       where.daerahId = String(daerahId);
+  //     }
+
+  //     if (desaId) {
+  //       where.desaId = String(desaId);
+  //     }
+
+  //     if (kelompokId) {
+  //       where.kelompokId = String(kelompokId);
+  //     }
+
+  //     const kegiatanList = await prisma.kegiatan.findMany({
+  //       where,
+  //       include: {
+  //         daerah: { select: { id: true, name: true } },
+  //         desa: { select: { id: true, name: true } },
+  //         kelompok: { select: { id: true, name: true } },
+  //         sasaran: {
+  //           select: {
+  //             jenjang: {
+  //               select: {
+  //                 id: true,
+  //                 name: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //       orderBy: { createdAt: "desc" },
+  //     });
+
+  //     response.success(
+  //       res,
+  //       kegiatanList,
+  //       "✅ Berhasil mengambil semua kegiatan",
+  //     );
+  //   } catch (error) {
+  //     response.error(res, error, "❌ Gagal mengambil daftar kegiatan");
+  //   }
+  // },
 };

@@ -21,6 +21,8 @@ export interface IMumiToken {
   desaId: string;
   daerahId: string;
   jenjangId: string;
+  mahasiswa: boolean;
+  tgl_lahir: string;
 }
 
 export interface IReqMumi extends Request {

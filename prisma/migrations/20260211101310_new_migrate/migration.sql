@@ -57,11 +57,24 @@ CREATE TABLE `Kegiatan` (
     `startDate` DATETIME(3) NOT NULL,
     `endDate` DATETIME(3) NOT NULL,
     `tingkat` ENUM('DAERAH', 'DESA', 'KELOMPOK') NOT NULL,
+    `targetType` ENUM('JENJANG', 'MAHASISWA', 'USIA') NOT NULL,
+    `jenisKelamin` ENUM('LAKI_LAKI', 'PEREMPUAN', 'SEMUA') NOT NULL DEFAULT 'SEMUA',
     `daerahId` VARCHAR(191) NULL,
     `desaId` VARCHAR(191) NULL,
     `kelompokId` VARCHAR(191) NULL,
+    `minUsia` INTEGER NULL,
+    `maxUsia` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `KegiatanDokumentasi` (
+    `id` VARCHAR(191) NOT NULL,
+    `kegiatanId` VARCHAR(191) NOT NULL,
+    `url` VARCHAR(191) NOT NULL,
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -80,6 +93,7 @@ CREATE TABLE `Mumi` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
     `nama` VARCHAR(191) NOT NULL,
     `password` VARCHAR(191) NULL,
+    `hasPassword` BOOLEAN NOT NULL DEFAULT false,
     `jenjangId` VARCHAR(191) NOT NULL,
     `kelasJenjangId` VARCHAR(191) NULL,
     `tgl_lahir` DATETIME(3) NOT NULL,
@@ -93,6 +107,18 @@ CREATE TABLE `Mumi` (
     `daerahId` VARCHAR(191) NOT NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `Message` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `senderId` INTEGER NOT NULL,
+    `receiverId` INTEGER NOT NULL,
+    `content` VARCHAR(191) NOT NULL,
+    `read` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -221,6 +247,7 @@ CREATE TABLE `RaporGenerus` (
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
+    UNIQUE INDEX `RaporGenerus_caberawitId_indikatorKelasId_semester_key`(`caberawitId`, `indikatorKelasId`, `semester`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -265,6 +292,9 @@ ALTER TABLE `Kegiatan` ADD CONSTRAINT `Kegiatan_desaId_fkey` FOREIGN KEY (`desaI
 ALTER TABLE `Kegiatan` ADD CONSTRAINT `Kegiatan_kelompokId_fkey` FOREIGN KEY (`kelompokId`) REFERENCES `Kelompok`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE `KegiatanDokumentasi` ADD CONSTRAINT `KegiatanDokumentasi_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE `KegiatanSasaran` ADD CONSTRAINT `KegiatanSasaran_kegiatanId_fkey` FOREIGN KEY (`kegiatanId`) REFERENCES `Kegiatan`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -284,6 +314,12 @@ ALTER TABLE `Mumi` ADD CONSTRAINT `Mumi_desaId_fkey` FOREIGN KEY (`desaId`) REFE
 
 -- AddForeignKey
 ALTER TABLE `Mumi` ADD CONSTRAINT `Mumi_daerahId_fkey` FOREIGN KEY (`daerahId`) REFERENCES `Daerah`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Message` ADD CONSTRAINT `Message_senderId_fkey` FOREIGN KEY (`senderId`) REFERENCES `Mumi`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `Message` ADD CONSTRAINT `Message_receiverId_fkey` FOREIGN KEY (`receiverId`) REFERENCES `Mumi`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `Caberawit` ADD CONSTRAINT `Caberawit_jenjangId_fkey` FOREIGN KEY (`jenjangId`) REFERENCES `Jenjang`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;

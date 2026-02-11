@@ -480,6 +480,103 @@ export default {
     }
   },
 
+  async findAllByMahasiswaDaerah(req: IReqUser, res: Response) {
+    try {
+      const { daerahId } = req.params;
+
+      const daerah = await prisma.daerah.findUnique({
+        where: { id: String(daerahId) },
+      });
+
+      if (!daerah) {
+        return response.notFound(res, "daerah tidak ditemukan");
+      }
+
+      const {
+        limit = 10,
+        page = 1,
+        search,
+        jenis_kelamin,
+        minUsia,
+        maxUsia,
+        jenjang,
+      } = req.query;
+
+      // ✅ WAJIB: filter desa
+      const where: any = {
+        daerahId: String(daerahId),
+        mahasiswa: true,
+      };
+
+      // 🔍 Filter nama
+      if (search) {
+        where.nama = {
+          contains: String(search),
+          mode: "insensitive",
+        };
+      }
+
+      // 🚻 Filter jenis kelamin
+      if (jenis_kelamin) {
+        where.jenis_kelamin = String(jenis_kelamin);
+      }
+
+      // 🎓 Filter jenjang
+      if (jenjang) {
+        where.jenjangId = String(jenjang);
+      }
+
+      // 🎂 Filter usia
+      if (minUsia || maxUsia) {
+        const today = new Date();
+
+        let tanggalLahirMin: Date | undefined;
+        let tanggalLahirMax: Date | undefined;
+
+        if (maxUsia) {
+          tanggalLahirMin = new Date(today);
+          tanggalLahirMin.setFullYear(today.getFullYear() - Number(maxUsia));
+        }
+
+        if (minUsia) {
+          tanggalLahirMax = new Date(today);
+          tanggalLahirMax.setFullYear(today.getFullYear() - Number(minUsia));
+        }
+
+        where.tgl_lahir = {};
+        if (tanggalLahirMin) where.tgl_lahir.gte = tanggalLahirMin;
+        if (tanggalLahirMax) where.tgl_lahir.lte = tanggalLahirMax;
+      }
+
+      const list = await prisma.mumi.findMany({
+        where,
+        include: {
+          daerah: true,
+          desa: true,
+          kelompok: true,
+          jenjang: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: Number(limit),
+        skip: (Number(page) - 1) * Number(limit),
+      });
+
+      const total = await prisma.mumi.count({ where });
+
+      return response.pagination(
+        res,
+        list,
+        {
+          current: Number(page),
+          total,
+          totalPages: Math.ceil(total / Number(limit)),
+        },
+        "✅ Berhasil mengambil daftar generus",
+      );
+    } catch (error) {
+      response.error(res, error, "❌ Gagal mengambil daftar generus");
+    }
+  },
   async findAllByMahasiswaDesa(req: IReqUser, res: Response) {
     try {
       const { desaId } = req.params;
@@ -577,6 +674,7 @@ export default {
       response.error(res, error, "❌ Gagal mengambil daftar generus");
     }
   },
+
   async findAllByMahasiswaKelompok(req: IReqUser, res: Response) {
     try {
       const { kelompokId } = req.params;

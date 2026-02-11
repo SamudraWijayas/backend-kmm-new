@@ -239,7 +239,7 @@ router.post(
       ROLES.KELOMPOK,
       ROLES.SUBKELOMPOK,
     ]),
-    mediaMiddleware.single("files"),
+    mediaMiddleware.multiple("files"),
   ],
   mediaController.multiple,
   /*
@@ -270,11 +270,25 @@ router.post(
 );
 router.delete(
   "/media/remove",
-  [
-    authMiddleware,
-    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
-  ],
+  authMiddleware,
   mediaController.remove,
+  /*
+  #swagger.tags = ['Media']
+  #swagger.security = [{
+    "bearerAuth": {}
+  }]
+  #swagger.requestBody = {
+    required: true,
+    schema: {
+      $ref: "#/components/schemas/RemoveMediaRequest"
+    }
+  }
+  */
+);
+router.delete(
+  "/media/remove-multiple",
+  authMiddleware,
+  mediaController.removeMultiple,
   /*
   #swagger.tags = ['Media']
   #swagger.security = [{
@@ -479,6 +493,14 @@ router.put(
   ],
   kegiatanController.update,
 );
+router.put(
+  "/kegiatan/:id/dokumentasi",
+  [
+    authMiddleware,
+    aclMiddleware([ROLES.SUPERADMIN, ROLES.DAERAH, ROLES.DESA, ROLES.KELOMPOK]),
+  ],
+  kegiatanController.updateDokumentasi,
+);
 
 router.delete(
   "/kegiatan/:id",
@@ -601,6 +623,11 @@ router.get(
   "/generus/:kelompokId/mumi",
   authMiddleware,
   generusController.findAllByKelompok,
+);
+router.get(
+  "/generus/:daerahId/mahasiswa",
+  [authMiddleware, aclMiddleware([ROLES.DAERAH, ROLES.SUBDAERAH])],
+  generusController.findAllByMahasiswaDaerah,
 );
 router.get(
   "/generus/:desaId/mahasiswa",
@@ -866,25 +893,6 @@ router.get(
 
 router.delete("/absen/:id", authMiddleware, absenCaberawitController.remove);
 
-// auth generus
-
-// login GENERUS
-router.post("/auth-generus/login", authGenerusController.loginGenerus);
-
-// ambil profil GENERUS
-router.get("/auth-generus/me", authGenerus, authGenerusController.meGenerus);
-router.get(
-  "/kegiatan-generus/desa",
-  authGenerus,
-  kegiatanController.findByDesa,
-);
-router.get(
-  "/kegiatan-generus/daerah",
-  authGenerus,
-  kegiatanController.findByDaerah,
-);
-router.post("/absen-generus/scan", authGenerus, absenController.absen);
-
 // catatan wali kelas
 router.post("/catatan-wali", authMiddleware, catatanWaliKelasController.upsert);
 router.get(
@@ -898,5 +906,42 @@ router.delete(
   authMiddleware,
   catatanWaliKelasController.remove,
 );
+
+// auth generus =======================================================================================================
+
+// login GENERUS
+router.post("/auth-generus/login", authGenerusController.loginGenerus);
+router.put(
+  "/auth-generus/update-profile",
+  authGenerus,
+  authGenerusController.updateProfile,
+);
+
+// ambil profil GENERUS
+router.get("/auth-generus/me", authGenerus, authGenerusController.meGenerus);
+router.get(
+  "/kegiatan-generus/desa",
+  authGenerus,
+  kegiatanController.findAuthMumiByDesa,
+);
+router.put(
+  "/auth-generus/set-password",
+  authGenerus,
+  authGenerusController.setPasswordFirstTime,
+);
+
+router.get(
+  "/kegiatan-generus/daerah",
+  authGenerus,
+  kegiatanController.findAuthMumiByDaerah,
+);
+router.post(
+  "/media-generus/upload-single",
+  [authGenerus, mediaMiddleware.single("file")],
+  mediaController.single,
+);
+router.post("/absen-generus/scan", authGenerus, absenController.absen);
+router.get("/desa-generus", authGenerus, desaController.findAll);
+router.get("/kelompok-generus", authGenerus, kelompokController.findAll);
 
 export default router;

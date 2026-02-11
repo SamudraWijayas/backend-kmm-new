@@ -1,7 +1,8 @@
 import { Response } from "express";
 import { IReqUser } from "../utils/interfaces";
-import uploader from "../utils/uploader";
 import response from "../utils/response";
+import uploader from "../utils/uploader";
+import uploadeDok from "../utils/uploader-dok";
 
 export default {
   async single(req: IReqUser, res: Response) {
@@ -24,7 +25,7 @@ export default {
     }
 
     try {
-      const result = await uploader.uploadMultiple(
+      const result = await uploadeDok.uploadMultiple(
         req.files as Express.Multer.File[]
       );
 
@@ -37,6 +38,16 @@ export default {
     try {
       const { fileUrl } = req.body as { fileUrl: string };
       const result = await uploader.remove(fileUrl);
+
+      response.success(res, result, "success remove file");
+    } catch {
+      response.error(res, null, "failed remove file");
+    }
+  },
+  async removeMultiple(req: IReqUser, res: Response) {
+    try {
+      const { fileUrl } = req.body as { fileUrl: string };
+      const result = await uploadeDok.remove(fileUrl);
 
       response.success(res, result, "success remove file");
     } catch {

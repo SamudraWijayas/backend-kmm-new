@@ -101,6 +101,7 @@ model Kegiatan {
   kelompokId String?
   minUsia     Int?
   maxUsia     Int?
+  dokumentasi   KegiatanDokumentasi[]
 
   daerah   Daerah?   @relation(fields: [daerahId], references: [id])
   desa     Desa?     @relation(fields: [desaId], references: [id])
@@ -112,6 +113,14 @@ model Kegiatan {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model KegiatanDokumentasi {
+  id          String   @id @default(cuid())
+  kegiatanId  String
+  url         String   // URL atau path gambar
+
+  kegiatan    Kegiatan @relation(fields: [kegiatanId], references: [id])
 }
 
 enum TargetType {
@@ -146,7 +155,8 @@ enum Tingkat {
 model Mumi {
   id            Int      @id @default(autoincrement())
   nama          String
-  password      String? 
+  password      String?
+  hasPassword    Boolean   @default(false) 
   jenjangId     String
   jenjang       Jenjang  @relation(fields: [jenjangId], references: [id])
   kelasJenjangId String?
@@ -165,11 +175,25 @@ model Mumi {
   kelompok Kelompok       @relation(fields: [kelompokId], references: [id])
   desa     Desa           @relation(fields: [desaId], references: [id])
   daerah   Daerah         @relation(fields: [daerahId], references: [id])
-  absensi  AbsenGenerus[] // 🔥 relasi balik dari AbsenGenerus.generus
+  absensi  AbsenGenerus[]
   rapor         RaporGenerus[]
+
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  receiverId Int
+  sender     Mumi     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   Mumi     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
 }
 
 model Caberawit {

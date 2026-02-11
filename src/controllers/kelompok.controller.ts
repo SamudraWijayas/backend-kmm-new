@@ -116,7 +116,7 @@ export default {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: "asc" },
         take: +limit,
         skip: (+page - 1) * +limit,
       });
