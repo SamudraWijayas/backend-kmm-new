@@ -181,6 +181,9 @@ model Mumi {
 
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
+  createdGroups Group[]
+  groupMemberships GroupMember[]
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -188,14 +191,63 @@ model Mumi {
 
 model Message {
   id         Int      @id @default(autoincrement())
+
   senderId   Int
-  receiverId Int
   sender     Mumi     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver   Mumi     @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  content    String
+
+  receiverId Int?
+  receiver   Mumi?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  groupId    Int?
+  group      Group?   @relation(fields: [groupId], references: [id])
+
+  content    String?
   read       Boolean  @default(false)
+
+  attachments Attachment[]
+
   createdAt  DateTime @default(now())
 }
+
+model Attachment {
+  id        Int    @id @default(autoincrement())
+  messageId Int
+  fileUrl   String
+  fileName  String
+  fileType  String
+  fileSize  Int?
+
+  message Message @relation(fields: [messageId], references: [id])
+}
+
+
+model Group {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdById Int
+  createdBy   Mumi     @relation(fields: [createdById], references: [id])
+
+  members     GroupMember[]
+  messages    Message[]
+
+  createdAt   DateTime @default(now())
+}
+
+
+model GroupMember {
+  id      Int  @id @default(autoincrement())
+  groupId Int
+  mumiId  Int
+
+  group Group @relation(fields: [groupId], references: [id])
+  mumi  Mumi  @relation(fields: [mumiId], references: [id])
+
+  joinedAt DateTime @default(now())
+
+  @@unique([groupId, mumiId])
+}
+
 
 model Caberawit {
   id            Int      @id @default(autoincrement())
