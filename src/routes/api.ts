@@ -27,6 +27,7 @@ import authGenerusController from "../controllers/authGenerus";
 import raporController from "../controllers/rapor.controller";
 import groupController from "../controllers/group.controller";
 import messageController from "../controllers/message.controller";
+import chatController from "../controllers/chat.controller";
 
 const router = express.Router();
 
@@ -953,8 +954,11 @@ router.post("/group", authGenerus, groupController.create);
 router.get("/group/me", authGenerus, groupController.myGroups);
 router.get("/group/:id", authGenerus, groupController.findOne);
 
+router.get("/chat/list", authGenerus, chatController.chatList);
+
 // message
 router.post("/message", authGenerus, messageController.sendMessage);
+router.patch("/message/read", authGenerus, messageController.markAsRead);
 
 // 🔍 Chat personal
 router.get(

@@ -101,4 +101,46 @@ export default {
       response.error(res, error, "❌ Gagal mengambil chat group");
     }
   },
+  async markAsRead(req: IReqUser, res: Response) {
+    try {
+      if (!req.user?.id) {
+        return response.unauthorized(res, "Unauthorized");
+      }
+
+      const userId = req.user.id;
+      const { senderId, groupId } = req.body;
+
+      // PERSONAL CHAT
+      if (senderId) {
+        await prisma.message.updateMany({
+          where: {
+            senderId,
+            receiverId: userId,
+            read: false,
+          },
+          data: {
+            read: true,
+          },
+        });
+      }
+
+      // GROUP CHAT
+      if (groupId) {
+        await prisma.message.updateMany({
+          where: {
+            groupId,
+            senderId: { not: userId },
+            read: false,
+          },
+          data: {
+            read: true,
+          },
+        });
+      }
+
+      return response.success(res, null, "Pesan sudah dibaca");
+    } catch (error) {
+      return response.error(res, error, "Gagal update read status");
+    }
+  },
 };

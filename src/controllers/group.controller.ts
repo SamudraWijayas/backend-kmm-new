@@ -12,7 +12,7 @@ export default {
   // 🟢 Buat Group
   async create(req: IReqUser, res: Response) {
     try {
-      const { name, description, members } = req.body;
+      const { name, members } = req.body;
       if (!req.user?.id) {
         return response.unauthorized(res, "User tidak terautentikasi");
       }
@@ -23,7 +23,6 @@ export default {
       const group = await prisma.group.create({
         data: {
           name,
-          description,
           createdById: userId,
           members: {
             create: [
