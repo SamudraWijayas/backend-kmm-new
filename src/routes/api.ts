@@ -25,6 +25,8 @@ import absenCaberawitController from "../controllers/absenCaberawit.controller";
 import catatanWaliKelasController from "../controllers/catatanWaliKelas.controller";
 import authGenerusController from "../controllers/authGenerus";
 import raporController from "../controllers/rapor.controller";
+import groupController from "../controllers/group.controller";
+import messageController from "../controllers/message.controller";
 
 const router = express.Router();
 
@@ -945,5 +947,27 @@ router.post(
 router.post("/absen-generus/scan", authGenerus, absenController.absen);
 router.get("/desa-generus", authGenerus, desaController.findAll);
 router.get("/kelompok-generus", authGenerus, kelompokController.findAll);
+
+// group
+router.post("/group", authGenerus, groupController.create);
+router.get("/group/me", authGenerus, groupController.myGroups);
+router.get("/group/:id", authGenerus, groupController.findOne);
+
+// message
+router.post("/message", authGenerus, messageController.sendMessage);
+
+// 🔍 Chat personal
+router.get(
+  "/message/private/:receiverId",
+  authGenerus,
+  messageController.getPrivateChat,
+);
+
+// 🔍 Chat group
+router.get(
+  "/message/group/:groupId",
+  authGenerus,
+  messageController.getGroupChat,
+);
 
 export default router;
