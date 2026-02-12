@@ -141,6 +141,7 @@ export default {
           desa: true,
           kelompok: true,
           sasaran: { include: { jenjang: true } },
+          dokumentasi: true,
         },
       });
 
@@ -148,57 +149,77 @@ export default {
         return response.notFound(res, "Kegiatan tidak ditemukan");
       }
 
-      // 🔹 Ambil jenjang jika target = JENJANG
-      const jenjangIds =
-        kegiatan.targetType === "JENJANG"
-          ? kegiatan.sasaran.map((s) => s.jenjangId)
-          : [];
+      const conditions: any[] = [];
 
-      const whereMumi: any = {};
-
+      // 🔹 Filter jenis kelamin
       if (kegiatan.jenisKelamin && kegiatan.jenisKelamin !== "SEMUA") {
-        whereMumi.jenis_kelamin = kegiatan.jenisKelamin;
+        conditions.push({
+          jenis_kelamin: kegiatan.jenisKelamin,
+        });
       }
 
-      // 📍 Scope wilayah sesuai tingkat
+      // 🔹 Scope wilayah
       if (kegiatan.tingkat === "DAERAH") {
-        whereMumi.daerahId = kegiatan.daerahId!;
-      } else if (kegiatan.tingkat === "DESA") {
-        whereMumi.desaId = kegiatan.desaId!;
-      } else if (kegiatan.tingkat === "KELOMPOK") {
-        whereMumi.kelompokId = kegiatan.kelompokId!;
+        conditions.push({ daerahId: kegiatan.daerahId });
+      }
+
+      if (kegiatan.tingkat === "DESA") {
+        conditions.push({ desaId: kegiatan.desaId });
+      }
+
+      if (kegiatan.tingkat === "KELOMPOK") {
+        conditions.push({ kelompokId: kegiatan.kelompokId });
       }
 
       // 🎯 TARGET FILTER
       if (kegiatan.targetType === "JENJANG") {
-        whereMumi.jenjangId = { in: jenjangIds };
+        const jenjangIds = kegiatan.sasaran.map((s) => s.jenjang.id);
+
+        if (!jenjangIds.length) {
+          return response.success(
+            res,
+            { kegiatan, peserta: [] },
+            "Tidak ada sasaran jenjang",
+          );
+        }
+
+        conditions.push({
+          jenjang: {
+            id: {
+              in: jenjangIds,
+            },
+          },
+        });
       }
 
       if (kegiatan.targetType === "MAHASISWA") {
-        whereMumi.mahasiswa = true;
+        conditions.push({ mahasiswa: true });
       }
 
       if (kegiatan.targetType === "USIA") {
         const today = new Date();
-
         const tglLahirFilter: any = {};
 
-        // batas usia tertua (maxUsia)
-        if (kegiatan.maxUsia !== null && kegiatan.maxUsia !== undefined) {
-          const tanggalLahirMin = new Date(today);
-          tanggalLahirMin.setFullYear(today.getFullYear() - kegiatan.maxUsia);
-          tglLahirFilter.gte = tanggalLahirMin;
+        if (kegiatan.maxUsia != null) {
+          const minDate = new Date(today);
+          minDate.setFullYear(today.getFullYear() - kegiatan.maxUsia);
+          tglLahirFilter.gte = minDate;
         }
 
-        // batas usia termuda (minUsia)
-        if (kegiatan.minUsia !== null && kegiatan.minUsia !== undefined) {
-          const tanggalLahirMax = new Date(today);
-          tanggalLahirMax.setFullYear(today.getFullYear() - kegiatan.minUsia);
-          tglLahirFilter.lte = tanggalLahirMax;
+        if (kegiatan.minUsia != null) {
+          const maxDate = new Date(today);
+          maxDate.setFullYear(today.getFullYear() - kegiatan.minUsia);
+          tglLahirFilter.lte = maxDate;
         }
 
-        whereMumi.tgl_lahir = tglLahirFilter;
+        conditions.push({
+          tgl_lahir: tglLahirFilter,
+        });
       }
+
+      const whereMumi = conditions.length ? { AND: conditions } : {};
+
+      console.log("FINAL WHERE:", JSON.stringify(whereMumi, null, 2));
 
       // 📦 Ambil peserta
       const mumiList = await prisma.mumi.findMany({

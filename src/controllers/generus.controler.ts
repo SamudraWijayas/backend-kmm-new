@@ -68,10 +68,21 @@ export default {
       if (!kelompok) return response.notFound(res, "Kelompok tidak ditemukan");
       if (!jenjang) return response.notFound(res, "Jenjang tidak ditemukan");
 
+      let baseSlug = nama.toLowerCase().trim().replace(/\s+/g, "-");
+
+      let slug = baseSlug;
+      let counter = 1;
+
+      while (await prisma.mumi.findFirst({ where: { slug } })) {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+
       // ✅ Simpan data
       const newGenerus = await prisma.mumi.create({
         data: {
           nama,
+          slug,
           daerahId,
           desaId,
           kelompokId,
@@ -814,10 +825,30 @@ export default {
     } = req.body;
 
     try {
+      // ✅ slug dasar
+      let baseSlug = nama.toLowerCase().trim().replace(/\s+/g, "-");
+
+      let slug = baseSlug;
+      let counter = 1;
+
+      // ✅ cek slug tapi abaikan id yang sedang diupdate
+      while (
+        await prisma.mumi.findFirst({
+          where: {
+            slug,
+            NOT: { id: Number(id) },
+          },
+        })
+      ) {
+        slug = `${baseSlug}-${counter}`;
+        counter++;
+      }
+
       const updated = await prisma.mumi.update({
         where: { id: Number(id) },
         data: {
           nama,
+          slug,
           daerah: { connect: { id: daerahId } },
           desa: { connect: { id: desaId } },
           kelompok: { connect: { id: kelompokId } },

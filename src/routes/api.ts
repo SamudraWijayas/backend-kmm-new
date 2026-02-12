@@ -930,6 +930,8 @@ router.put(
   authGenerusController.setPasswordFirstTime,
 );
 
+router.get("/kegiatan-generus", kegiatanController.findAll);
+
 router.get(
   "/kegiatan-generus/daerah",
   authGenerus,

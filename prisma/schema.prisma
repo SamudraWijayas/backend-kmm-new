@@ -120,7 +120,7 @@ model KegiatanDokumentasi {
   kegiatanId  String
   url         String   // URL atau path gambar
 
-  kegiatan    Kegiatan @relation(fields: [kegiatanId], references: [id])
+  kegiatan    Kegiatan @relation(fields: [kegiatanId], references: [id], onDelete: Cascade)
 }
 
 enum TargetType {
@@ -155,6 +155,7 @@ enum Tingkat {
 model Mumi {
   id            Int      @id @default(autoincrement())
   nama          String
+  slug           String?  @unique
   password      String?
   hasPassword    Boolean   @default(false) 
   jenjangId     String

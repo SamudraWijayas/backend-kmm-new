@@ -3,6 +3,7 @@ import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { IReqMumi, IReqUser } from "../utils/interfaces";
 import * as Yup from "yup";
+import uploadeDok from "../utils/uploader-dok";
 
 // ✅ Validasi input
 const kegiatanAddDTO = Yup.object({
@@ -198,12 +199,18 @@ export default {
       }
 
       // 🎯 TARGET FILTER
-      if (kegiatan.targetType === "JENJANG" && jenjangIds.length === 0) {
-        return response.success(
-          res,
-          { kegiatan, peserta: [] },
-          "⚠️ Kegiatan ini tidak memiliki sasaran jenjang",
-        );
+      if (kegiatan.targetType === "JENJANG") {
+        if (jenjangIds.length === 0) {
+          return response.success(
+            res,
+            { kegiatan, peserta: [] },
+            "⚠️ Kegiatan ini tidak memiliki sasaran jenjang",
+          );
+        }
+
+        whereMumi.jenjangId = {
+          in: jenjangIds,
+        };
       }
 
       if (kegiatan.targetType === "MAHASISWA") {
@@ -359,29 +366,46 @@ export default {
     }
   },
 
-  // ✅ Update dokumentasi kegiatan saja
   async updateDokumentasi(req: IReqUser, res: Response) {
     const { id } = req.params;
-    const { dokumentasi = [] } = req.body; // array string URL dari frontend
+    const { dokumentasi = [] } = req.body;
 
     try {
       if (!Array.isArray(dokumentasi)) {
         return response.error(res, null, "dokumentasi harus berupa array");
       }
 
+      // 1️⃣ Ambil dokumentasi lama
+      const existing = await prisma.kegiatan.findUnique({
+        where: { id: String(id) },
+        include: { dokumentasi: true },
+      });
+
+      if (!existing) {
+        return response.error(res, null, "Data tidak ditemukan");
+      }
+
+      // 2️⃣ Hapus file lama dari storage
+      for (const doc of existing.dokumentasi) {
+        try {
+          await uploadeDok.remove(doc.url);
+        } catch (err) {
+          console.warn("Gagal hapus file:", doc.url);
+        }
+      }
+
+      // 3️⃣ Update DB
       const updated = await prisma.kegiatan.update({
         where: { id: String(id) },
         data: {
           dokumentasi: {
-            deleteMany: {}, // hapus dokumentasi lama
+            deleteMany: {},
             create: dokumentasi.map((d: string | { url: string }) =>
               typeof d === "string" ? { url: d } : { url: d.url },
             ),
           },
         },
-        include: {
-          dokumentasi: true,
-        },
+        include: { dokumentasi: true },
       });
 
       response.success(res, updated, "✅ Berhasil memperbarui dokumentasi!");
@@ -390,6 +414,37 @@ export default {
       response.error(res, error, "❌ Gagal memperbarui dokumentasi");
     }
   },
+  // ✅ Update dokumentasi kegiatan saja
+  // async updateDokumentasi(req: IReqUser, res: Response) {
+  //   const { id } = req.params;
+  //   const { dokumentasi = [] } = req.body; // array string URL dari frontend
+
+  //   try {
+  //     if (!Array.isArray(dokumentasi)) {
+  //       return response.error(res, null, "dokumentasi harus berupa array");
+  //     }
+
+  //     const updated = await prisma.kegiatan.update({
+  //       where: { id: String(id) },
+  //       data: {
+  //         dokumentasi: {
+  //           deleteMany: {}, // hapus dokumentasi lama
+  //           create: dokumentasi.map((d: string | { url: string }) =>
+  //             typeof d === "string" ? { url: d } : { url: d.url },
+  //           ),
+  //         },
+  //       },
+  //       include: {
+  //         dokumentasi: true,
+  //       },
+  //     });
+
+  //     response.success(res, updated, "✅ Berhasil memperbarui dokumentasi!");
+  //   } catch (error) {
+  //     console.error(error);
+  //     response.error(res, error, "❌ Gagal memperbarui dokumentasi");
+  //   }
+  // },
   // ✅ Hapus kegiatan
   async remove(req: IReqUser, res: Response) {
     const { id } = req.params;

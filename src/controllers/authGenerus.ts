@@ -39,10 +39,8 @@ export default {
     try {
       const { identifier, password } = req.body;
 
-      // ⚠️ password boleh kosong
-      if (!identifier) {
-        return response.notFound(res, "Identifier wajib diisi");
-      }
+      if (!identifier || !password)
+        return response.notFound(res, "Identifier dan password wajib diisi");
 
       const generus = await prisma.mumi.findFirst({
         where: {
@@ -53,27 +51,35 @@ export default {
       if (!generus)
         return response.unauthorized(res, "Akun generus tidak terdaftar");
 
-      // 🔑 jika password tidak ada → pakai tgl lahir
-      let finalPassword = password;
+      let isValid = false;
 
-      if (!password) {
+      // =====================================
+      // 🔐 Jika BELUM punya password
+      // =====================================
+      if (generus.hasPassword === false) {
         const tgl = new Date(generus.tgl_lahir);
-        const yyyy = tgl.getFullYear();
-        const mm = String(tgl.getMonth() + 1).padStart(2, "0");
-        const dd = String(tgl.getDate()).padStart(2, "0");
+        const defaultPassword = `${tgl.getFullYear()}${String(
+          tgl.getMonth() + 1,
+        ).padStart(2, "0")}${String(tgl.getDate()).padStart(2, "0")}`;
 
-        finalPassword = `${yyyy}${mm}${dd}`;
+        isValid = password === defaultPassword;
       }
 
-      // 🔒 validasi password (dibandingkan dengan tgl lahir)
-      const tgl = new Date(generus.tgl_lahir);
-      const realPassword = `${tgl.getFullYear()}${String(
-        tgl.getMonth() + 1,
-      ).padStart(2, "0")}${String(tgl.getDate()).padStart(2, "0")}`;
+      // =====================================
+      // 🔐 Jika SUDAH punya password
+      // =====================================
+      if (generus.hasPassword === true) {
+        if (!generus.password)
+          return response.unauthorized(res, "Password belum diset");
 
-      if (finalPassword !== realPassword)
-        return response.unauthorized(res, "Password Salah");
+        isValid = generus.password === encrypt(password);
+      }
 
+      if (!isValid) return response.unauthorized(res, "Password Salah");
+
+      // =====================================
+      // 🎟 Generate Token
+      // =====================================
       const token = generateMumiToken({
         id: generus.id,
         nama: generus.nama,
@@ -81,18 +87,15 @@ export default {
         desaId: generus.desaId,
         daerahId: generus.daerahId,
         jenjangId: generus.jenjangId,
-
         mahasiswa: Boolean(generus.mahasiswa),
-
-        tgl_lahir: generus.tgl_lahir ? generus.tgl_lahir.toISOString() : "",
+        tgl_lahir: generus.tgl_lahir.toISOString(),
       });
 
-      response.success(res, token, "Login generus success");
+      return response.success(res, token, "Login generus success");
     } catch (error) {
-      response.error(res, error, "Login generus failed");
+      return response.error(res, error, "Login generus failed");
     }
   },
-
   async updateProfile(req: IReqMumi, res: Response) {
     try {
       const userId = req.user?.id;
