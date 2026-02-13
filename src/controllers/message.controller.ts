@@ -11,27 +11,29 @@ const messageDTO = Yup.object({
 });
 
 export default {
-  // 🟢 Kirim pesan
+  // ===============================
+  // 🟢 SEND MESSAGE
+  // ===============================
   async sendMessage(req: IReqUser, res: Response) {
     try {
-      const { content, receiverId, groupId, attachments } = req.body;
       if (!req.user?.id) {
         return response.unauthorized(res, "User tidak terautentikasi");
       }
 
-      const senderId = req.user?.id;
+      const senderId = req.user.id;
+      const { content, receiverId, groupId, attachments } = req.body;
 
       await messageDTO.validate({ content, receiverId, groupId });
 
       if (!receiverId && !groupId) {
-        return response.unauthorized(res, "Harus ada receiverId atau groupId");
+        return response.notFound(res, "Harus ada receiverId atau groupId");
       }
 
       const message = await prisma.message.create({
         data: {
           senderId,
-          receiverId,
-          groupId,
+          receiverId: receiverId ?? null,
+          groupId: groupId ?? null,
           content,
           attachments: attachments
             ? {
@@ -50,17 +52,23 @@ export default {
         },
       });
 
-      response.success(res, message, "✅ Pesan berhasil dikirim");
+      return response.success(res, message, "✅ Pesan berhasil dikirim");
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengirim pesan");
+      return response.error(res, error, "❌ Gagal mengirim pesan");
     }
   },
 
-  // 🔍 Chat personal
+  // ===============================
+  // 🔍 PERSONAL CHAT
+  // ===============================
   async getPrivateChat(req: IReqUser, res: Response) {
     try {
       const userId = req.user?.id;
       const { receiverId } = req.params;
+
+      if (!userId) {
+        return response.unauthorized(res, "Unauthorized");
+      }
 
       const messages = await prisma.message.findMany({
         where: {
@@ -72,35 +80,53 @@ export default {
         include: {
           sender: true,
           attachments: true,
+          reads: {
+            select: {
+              mumiId: true,
+            },
+          },
         },
         orderBy: { createdAt: "asc" },
       });
 
-      response.success(res, messages, "✅ Chat berhasil diambil");
+      return response.success(res, messages, "✅ Chat berhasil diambil");
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengambil chat");
+      return response.error(res, error, "❌ Gagal mengambil chat");
     }
   },
 
-  // 🔍 Chat group
+  // ===============================
+  // 🔍 GROUP CHAT
+  // ===============================
   async getGroupChat(req: IReqUser, res: Response) {
     try {
       const { groupId } = req.params;
 
       const messages = await prisma.message.findMany({
-        where: { groupId: Number(groupId) },
+        where: {
+          groupId: Number(groupId),
+        },
         include: {
           sender: true,
           attachments: true,
+          reads: {
+            select: {
+              mumiId: true,
+            },
+          },
         },
         orderBy: { createdAt: "asc" },
       });
 
-      response.success(res, messages, "✅ Chat group berhasil diambil");
+      return response.success(res, messages, "✅ Chat group berhasil diambil");
     } catch (error) {
-      response.error(res, error, "❌ Gagal mengambil chat group");
+      return response.error(res, error, "❌ Gagal mengambil chat group");
     }
   },
+
+  // ===============================
+  // ✅ MARK AS READ (VERSI BARU)
+  // ===============================
   async markAsRead(req: IReqUser, res: Response) {
     try {
       if (!req.user?.id) {
@@ -110,31 +136,45 @@ export default {
       const userId = req.user.id;
       const { senderId, groupId } = req.body;
 
+      // =====================
       // PERSONAL CHAT
+      // =====================
       if (senderId) {
-        await prisma.message.updateMany({
+        const messages = await prisma.message.findMany({
           where: {
             senderId,
             receiverId: userId,
-            read: false,
           },
-          data: {
-            read: true,
-          },
+          select: { id: true },
+        });
+
+        await prisma.messageRead.createMany({
+          data: messages.map((msg) => ({
+            messageId: msg.id,
+            mumiId: userId,
+          })),
+          skipDuplicates: true,
         });
       }
 
+      // =====================
       // GROUP CHAT
+      // =====================
       if (groupId) {
-        await prisma.message.updateMany({
+        const messages = await prisma.message.findMany({
           where: {
             groupId,
             senderId: { not: userId },
-            read: false,
           },
-          data: {
-            read: true,
-          },
+          select: { id: true },
+        });
+
+        await prisma.messageRead.createMany({
+          data: messages.map((msg) => ({
+            messageId: msg.id,
+            mumiId: userId,
+          })),
+          skipDuplicates: true,
         });
       }
 

@@ -5,6 +5,8 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import path from "path";
 import errorMiddleware from "./middleware/error.middleware";
+import maintenanceMiddleware from "./middleware/maintenance.middleware";
+import { getMaintenance } from "./controllers/settingController";
 
 async function init() {
   try {
@@ -24,7 +26,8 @@ async function init() {
         data: null,
       });
     });
-
+    app.get("/api/maintenance", getMaintenance);
+    app.use(maintenanceMiddleware);
     app.use("/api", router);
 
     app.use(errorMiddleware.serverRoute());

@@ -11,14 +11,41 @@ export default {
       }
 
       const userId = req.user.id;
+      const search = String(req.query.search || "");
 
       // =========================
       // PERSONAL CHAT
       // =========================
       const personalMessages = await prisma.message.findMany({
         where: {
-          OR: [{ senderId: userId }, { receiverId: userId }],
           groupId: null,
+          AND: [
+            {
+              OR: [{ senderId: userId }, { receiverId: userId }],
+            },
+            ...(search
+              ? [
+                  {
+                    OR: [
+                      {
+                        sender: {
+                          nama: {
+                            contains: search,
+                          },
+                        },
+                      },
+                      {
+                        receiver: {
+                          nama: {
+                            contains: search,
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : []),
+          ],
         },
         include: {
           sender: true,
@@ -36,14 +63,16 @@ export default {
 
         if (!otherUser) continue;
 
-        // ambil hanya last chat
         if (!personalMap.has(otherUser.id)) {
-          // hitung unread message dari user tersebut
           const unreadCount = await prisma.message.count({
             where: {
               senderId: otherUser.id,
               receiverId: userId,
-              read: false,
+              reads: {
+                none: {
+                  mumiId: userId,
+                },
+              },
             },
           });
 
@@ -61,7 +90,16 @@ export default {
       // GROUP CHAT
       // =========================
       const groupMembers = await prisma.groupMember.findMany({
-        where: { mumiId: userId },
+        where: {
+          mumiId: userId,
+          ...(search && {
+            group: {
+              name: {
+                contains: search,
+              },
+            },
+          }),
+        },
         include: {
           group: {
             include: {
@@ -76,12 +114,15 @@ export default {
 
       const groupChats = await Promise.all(
         groupMembers.map(async (gm) => {
-          // hitung unread group
           const unreadCount = await prisma.message.count({
             where: {
               groupId: gm.group.id,
               senderId: { not: userId },
-              read: false,
+              reads: {
+                none: {
+                  mumiId: userId,
+                },
+              },
             },
           });
 
@@ -96,7 +137,7 @@ export default {
       );
 
       // =========================
-      // GABUNGKAN
+      // MERGE + SORT
       // =========================
       const chatList = [
         ...Array.from(personalMap.values()),
@@ -108,6 +149,7 @@ export default {
 
       return response.success(res, chatList, "✅ Chat list berhasil diambil");
     } catch (error) {
+      console.log(error);
       return response.error(res, error, "❌ Gagal mengambil chat list");
     }
   },

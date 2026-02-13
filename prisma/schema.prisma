@@ -14,6 +14,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Setting {
+  id               Int     @id @default(1)
+  maintenanceMode  Boolean @default(false)
+  maintenanceMsg   String?
+  updatedAt        DateTime @updatedAt
+}
+
+
 model User {
   id       Int     @id @default(autoincrement())
   fullName String
@@ -181,8 +189,10 @@ model Mumi {
 
   sentMessages     Message[] @relation("SentMessages")
   receivedMessages Message[] @relation("ReceivedMessages")
-  createdGroups Group[]
+  createdGroups Group[] @relation("GroupCreator")
   groupMemberships GroupMember[]
+  messageReads MessageRead[]
+
 
 
   createdAt DateTime @default(now())
@@ -202,12 +212,26 @@ model Message {
   group      Group?   @relation(fields: [groupId], references: [id])
 
   content    String?
-  read       Boolean  @default(false)
+  reads       MessageRead[]
 
   attachments Attachment[]
 
   createdAt  DateTime @default(now())
 }
+
+model MessageRead {
+  id        Int  @id @default(autoincrement())
+  messageId Int
+  mumiId    Int
+
+  message Message @relation(fields: [messageId], references: [id])
+  mumi    Mumi    @relation(fields: [mumiId], references: [id])
+
+  readAt DateTime @default(now())
+
+  @@unique([messageId, mumiId])
+}
+
 
 model Attachment {
   id        Int    @id @default(autoincrement())
@@ -226,7 +250,7 @@ model Group {
   name        String
   description String?
   createdById Int
-  createdBy   Mumi     @relation(fields: [createdById], references: [id])
+  createdBy   Mumi @relation("GroupCreator", fields: [createdById], references: [id])
 
   members     GroupMember[]
   messages    Message[]
