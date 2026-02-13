@@ -979,6 +979,12 @@ router.get(
   messageController.getGroupDetail,
 );
 
+router.get(
+  "/conversation/:conversationId",
+  authGenerus,
+  messageController.getConversationById,
+);
+
 // UPDATE GROUP
 router.patch(
   "/conversations/group/:conversationId",

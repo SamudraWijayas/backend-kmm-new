@@ -268,6 +268,53 @@ export default {
     }
   },
 
+  async getConversationById(req: IReqUser, res: Response) {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return response.unauthorized(res, "Unauthorized");
+      }
+
+      // pastikan user participant
+      const isParticipant = await prisma.conversationParticipant.findFirst({
+        where: {
+          conversationId,
+          mumiId: userId,
+        },
+      });
+
+      if (!isParticipant) {
+        return response.unauthorized(res, "Bukan anggota conversation");
+      }
+
+      // ambil conversation beserta peserta saja
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        include: {
+          participants: {
+            include: {
+              mumi: true,
+            },
+          },
+        },
+      });
+
+      if (!conversation) {
+        return response.notFound(res, "Conversation tidak ditemukan");
+      }
+
+      return response.success(
+        res,
+        conversation,
+        "✅ Conversation berhasil diambil",
+      );
+    } catch (error) {
+      return response.error(res, error, "❌ Gagal mengambil conversation");
+    }
+  },
+
   async getGroupDetail(req: IReqUser, res: Response) {
     try {
       const { conversationId } = req.params;
