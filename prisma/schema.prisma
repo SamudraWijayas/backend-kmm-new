@@ -163,13 +163,16 @@ enum Tingkat {
 model Mumi {
   id            Int      @id @default(autoincrement())
   nama          String
-  slug           String?  @unique
+  slug          String?  @unique
   password      String?
-  hasPassword    Boolean   @default(false) 
+  hasPassword   Boolean  @default(false)
+
   jenjangId     String
   jenjang       Jenjang  @relation(fields: [jenjangId], references: [id])
+
   kelasJenjangId String?
-  kelasJenjang  KelasJenjang? @relation(fields: [kelasJenjangId], references: [id])
+  kelasJenjang   KelasJenjang? @relation(fields: [kelasJenjangId], references: [id])
+
   tgl_lahir     DateTime
   jenis_kelamin String
   gol_darah     String
@@ -181,43 +184,48 @@ model Mumi {
   desaId     String
   daerahId   String
 
-  kelompok Kelompok       @relation(fields: [kelompokId], references: [id])
-  desa     Desa           @relation(fields: [desaId], references: [id])
-  daerah   Daerah         @relation(fields: [daerahId], references: [id])
-  absensi  AbsenGenerus[]
-  rapor         RaporGenerus[]
+  kelompok Kelompok @relation(fields: [kelompokId], references: [id])
+  desa     Desa     @relation(fields: [desaId], references: [id])
+  daerah   Daerah   @relation(fields: [daerahId], references: [id])
 
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
-  createdGroups Group[] @relation("GroupCreator")
-  groupMemberships GroupMember[]
+  absensi  AbsenGenerus[]
+  rapor    RaporGenerus[]
+
+  /* ================= CHAT SYSTEM ================= */
+
+  sentMessages Message[] @relation("SentMessages")
+
+  conversationsCreated Conversation[] @relation("ConversationCreator")
+
+  conversationParticipants ConversationParticipant[]
+
   messageReads MessageRead[]
 
-
+  /* ============================================== */
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
+
 model Message {
-  id         Int      @id @default(autoincrement())
+  id             Int @id @default(autoincrement())
 
-  senderId   Int
-  sender     Mumi     @relation("SentMessages", fields: [senderId], references: [id])
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
 
-  receiverId Int?
-  receiver   Mumi?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  senderId Int
+  sender   Mumi  @relation("SentMessages", fields: [senderId], references: [id])
 
-  groupId    Int?
-  group      Group?   @relation(fields: [groupId], references: [id])
+  content String?
 
-  content    String?
   reads       MessageRead[]
-
   attachments Attachment[]
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 }
+
+
 
 model MessageRead {
   id        Int  @id @default(autoincrement())
@@ -233,6 +241,7 @@ model MessageRead {
 }
 
 
+
 model Attachment {
   id        Int    @id @default(autoincrement())
   messageId Int
@@ -245,32 +254,42 @@ model Attachment {
 }
 
 
-model Group {
-  id          Int      @id @default(autoincrement())
-  name        String
+
+model Conversation {
+  id        Int      @id @default(autoincrement())
+  isGroup   Boolean  @default(false)
+
+  name        String?
   description String?
-  createdById Int
-  createdBy   Mumi @relation("GroupCreator", fields: [createdById], references: [id])
+  image       String?   // 🔥 tambahkan ini untuk foto group
 
-  members     GroupMember[]
-  messages    Message[]
+  createdById Int?
+  createdBy   Mumi? @relation("ConversationCreator", fields: [createdById], references: [id])
 
-  createdAt   DateTime @default(now())
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 
-model GroupMember {
-  id      Int  @id @default(autoincrement())
-  groupId Int
-  mumiId  Int
 
-  group Group @relation(fields: [groupId], references: [id])
-  mumi  Mumi  @relation(fields: [mumiId], references: [id])
+
+model ConversationParticipant {
+  id             Int @id @default(autoincrement())
+  conversationId Int
+  mumiId         Int
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  mumi         Mumi        @relation(fields: [mumiId], references: [id])
 
   joinedAt DateTime @default(now())
 
-  @@unique([groupId, mumiId])
+  @@unique([conversationId, mumiId])
 }
+
+
 
 
 model Caberawit {
