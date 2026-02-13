@@ -25,7 +25,6 @@ import absenCaberawitController from "../controllers/absenCaberawit.controller";
 import catatanWaliKelasController from "../controllers/catatanWaliKelas.controller";
 import authGenerusController from "../controllers/authGenerus";
 import raporController from "../controllers/rapor.controller";
-import groupController from "../controllers/group.controller";
 import messageController from "../controllers/message.controller";
 import chatController from "../controllers/chat.controller";
 
@@ -949,29 +948,70 @@ router.post("/absen-generus/scan", authGenerus, absenController.absen);
 router.get("/desa-generus", authGenerus, desaController.findAll);
 router.get("/kelompok-generus", authGenerus, kelompokController.findAll);
 
-// group
-router.post("/group", authGenerus, groupController.create);
-router.get("/group/me", authGenerus, groupController.myGroups);
-router.get("/group/:id", authGenerus, groupController.findOne);
-
 router.get("/chat/list", authGenerus, chatController.chatList);
 
 // message
-router.post("/message", authGenerus, messageController.sendMessage);
-router.patch("/message/read", authGenerus, messageController.markAsRead);
+router.post("/messages", authGenerus, messageController.sendMessage);
 
-// 🔍 Chat personal
+// GET CHAT BY CONVERSATION
 router.get(
-  "/message/private/:receiverId",
+  "/messages/:conversationId",
   authGenerus,
-  messageController.getPrivateChat,
+  messageController.getConversationChat,
 );
 
-// 🔍 Chat group
-router.get(
-  "/message/group/:groupId",
+// MARK AS READ
+router.post("/messages/read", authGenerus, messageController.markAsRead);
+
+router.post(
+  "/conversations/private",
   authGenerus,
-  messageController.getGroupChat,
+  messageController.createPrivateConversation,
+);
+
+// CREATE GROUP
+router.post("/conversations/group", authGenerus, messageController.createGroup);
+
+// GET GROUP DETAIL
+router.get(
+  "/conversations/group/:conversationId",
+  authGenerus,
+  messageController.getGroupDetail,
+);
+
+// UPDATE GROUP
+router.patch(
+  "/conversations/group/:conversationId",
+  authGenerus,
+  messageController.updateGroup,
+);
+
+// DELETE GROUP
+router.delete(
+  "/conversations/group/:conversationId",
+  authGenerus,
+  messageController.deleteGroup,
+);
+
+// LEAVE GROUP
+router.delete(
+  "/conversations/group/:conversationId/leave",
+  authGenerus,
+  messageController.leaveGroup,
+);
+
+// ADD MEMBER
+router.post(
+  "/conversations/group/:conversationId/member",
+  authGenerus,
+  messageController.addMember,
+);
+
+// REMOVE MEMBER
+router.delete(
+  "/conversations/group/:conversationId/member/:mumiId",
+  authGenerus,
+  messageController.removeMember,
 );
 
 export default router;

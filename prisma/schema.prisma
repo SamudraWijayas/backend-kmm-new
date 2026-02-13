@@ -211,8 +211,9 @@ model Mumi {
 model Message {
   id             Int @id @default(autoincrement())
 
-  conversationId Int
+  conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id])
+
 
   senderId Int
   sender   Mumi  @relation("SentMessages", fields: [senderId], references: [id])
@@ -256,7 +257,7 @@ model Attachment {
 
 
 model Conversation {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid())
   isGroup   Boolean  @default(false)
 
   name        String?
@@ -278,11 +279,15 @@ model Conversation {
 
 model ConversationParticipant {
   id             Int @id @default(autoincrement())
-  conversationId Int
+  conversationId String
+
   mumiId         Int
 
-  conversation Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+
   mumi         Mumi        @relation(fields: [mumiId], references: [id])
+
+
 
   joinedAt DateTime @default(now())
 

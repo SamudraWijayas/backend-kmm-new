@@ -14,109 +14,62 @@ export default {
       const search = String(req.query.search || "");
 
       // =========================
-      // PERSONAL CHAT
+      // AMBIL SEMUA CONVERSATION USER
       // =========================
-      const personalMessages = await prisma.message.findMany({
+      const conversations = await prisma.conversation.findMany({
         where: {
-          groupId: null,
-          AND: [
-            {
-              OR: [{ senderId: userId }, { receiverId: userId }],
-            },
-            ...(search
-              ? [
-                  {
-                    OR: [
-                      {
-                        sender: {
-                          nama: {
-                            contains: search,
-                          },
-                        },
-                      },
-                      {
-                        receiver: {
-                          nama: {
-                            contains: search,
-                          },
-                        },
-                      },
-                    ],
-                  },
-                ]
-              : []),
-          ],
-        },
-        include: {
-          sender: true,
-          receiver: true,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-
-      const personalMap = new Map();
-
-      for (const msg of personalMessages) {
-        const otherUser = msg.senderId === userId ? msg.receiver : msg.sender;
-
-        if (!otherUser) continue;
-
-        if (!personalMap.has(otherUser.id)) {
-          const unreadCount = await prisma.message.count({
-            where: {
-              senderId: otherUser.id,
-              receiverId: userId,
-              reads: {
-                none: {
-                  mumiId: userId,
+          participants: {
+            some: { mumiId: userId },
+          },
+          ...(search && {
+            OR: [
+              {
+                name: {
+                  contains: search,
                 },
               },
-            },
-          });
-
-          personalMap.set(otherUser.id, {
-            type: "personal",
-            user: otherUser,
-            lastMessage: msg.content,
-            createdAt: msg.createdAt,
-            unreadCount,
-          });
-        }
-      }
-
-      // =========================
-      // GROUP CHAT
-      // =========================
-      const groupMembers = await prisma.groupMember.findMany({
-        where: {
-          mumiId: userId,
-          ...(search && {
-            group: {
-              name: {
-                contains: search,
+              {
+                participants: {
+                  some: {
+                    mumi: {
+                      nama: {
+                        contains: search,
+                      },
+                      id: { not: userId },
+                    },
+                  },
+                },
               },
-            },
+            ],
           }),
         },
         include: {
-          group: {
+          participants: {
             include: {
-              messages: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-              },
+              mumi: true,
             },
           },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
         },
       });
 
-      const groupChats = await Promise.all(
-        groupMembers.map(async (gm) => {
+      // =========================
+      // FORMAT CHAT LIST
+      // =========================
+      const chatList = await Promise.all(
+        conversations.map(async (conv) => {
+          const lastMessage = conv.messages[0] || null;
+
+          // hitung unread
           const unreadCount = await prisma.message.count({
             where: {
-              groupId: gm.group.id,
+              conversationId: conv.id,
               senderId: { not: userId },
               reads: {
                 none: {
@@ -126,25 +79,33 @@ export default {
             },
           });
 
+          // PERSONAL CHAT
+          if (!conv.isGroup) {
+            const otherUser = conv.participants
+              .map((p) => p.mumi)
+              .find((u) => u.id !== userId);
+
+            return {
+              type: "personal",
+              conversationId: conv.id,
+              user: otherUser,
+              lastMessage: lastMessage?.content || null,
+              createdAt: lastMessage?.createdAt || conv.createdAt,
+              unreadCount,
+            };
+          }
+
+          // GROUP CHAT
           return {
             type: "group",
-            group: gm.group,
-            lastMessage: gm.group.messages[0]?.content || null,
-            createdAt: gm.group.messages[0]?.createdAt || gm.group.createdAt,
+            conversationId: conv.id,
+            name: conv.name,
+            image: conv.image,
+            lastMessage: lastMessage?.content || null,
+            createdAt: lastMessage?.createdAt || conv.createdAt,
             unreadCount,
           };
         }),
-      );
-
-      // =========================
-      // MERGE + SORT
-      // =========================
-      const chatList = [
-        ...Array.from(personalMap.values()),
-        ...groupChats,
-      ].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
 
       return response.success(res, chatList, "✅ Chat list berhasil diambil");
