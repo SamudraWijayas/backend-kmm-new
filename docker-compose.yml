@@ -4,7 +4,7 @@ services:
   # MySQL Database
   db:
     image: mysql:8.0
-    container_name: backend-db
+    container_name: mysql-db
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
@@ -41,7 +41,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mysql://backend:backendpassword@db:3306/backend
+      DATABASE_URL: mysql://ppgroot:pembinaangenerus@db:3306/ppg
       SECRET: 76973f48ffeeb8c96a7994ba29f9ba05
       PORT: 3000
       NODE_ENV: production
