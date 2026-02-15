@@ -56,6 +56,25 @@ services:
       - backend-network
     command: sh -c "npx prisma migrate deploy && node dist/index.js"
 
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin-app
+    restart: always
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql-db
+      PMA_PORT: 3306
+      PMA_USER: ppgroot
+      PMA_PASSWORD: pembinaangenerus
+      MYSQL_ROOT_PASSWORD: rootpassword
+      UPLOAD_LIMIT: 100M
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
 networks:
   backend-network:
     driver: bridge
