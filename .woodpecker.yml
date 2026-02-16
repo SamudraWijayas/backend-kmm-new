@@ -1,0 +1,20 @@
+steps:
+  deploy:
+    image: appleboy/drone-ssh
+    settings:
+      host:
+        from_secret: SSH_HOST
+      username:
+        from_secret: SSH_USER
+      key:
+        from_secret: SSH_KEY
+      port: 22
+      script:
+        - cd /home/ppg/backend-kmm-new
+        - git pull origin main
+        - docker compose down
+        - docker compose up -d --build
+        - docker image prune -f
+    when:
+      - event: push
+        branch: main
