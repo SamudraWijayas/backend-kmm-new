@@ -384,6 +384,7 @@ router.delete("/catatan-wali/:id", auth_middleware_1.default, catatanWaliKelas_c
 // login GENERUS
 router.post("/auth-generus/login", authGenerus_1.default.loginGenerus);
 router.put("/auth-generus/update-profile", authGenerus_middleware_1.default, authGenerus_1.default.updateProfile);
+router.put("/auth-generus/update-password", authGenerus_middleware_1.default, authGenerus_1.default.updatePassword);
 // ambil profil GENERUS
 router.get("/auth-generus/me", authGenerus_middleware_1.default, authGenerus_1.default.meGenerus);
 router.get("/kegiatan-generus/desa", authGenerus_middleware_1.default, kegiatan_controller_1.default.findAuthMumiByDesa);
@@ -397,16 +398,19 @@ router.get("/kelompok-generus", authGenerus_middleware_1.default, kelompok_contr
 router.get("/chat/list", authGenerus_middleware_1.default, chat_controller_1.default.chatList);
 // message
 router.post("/messages", authGenerus_middleware_1.default, message_controller_1.default.sendMessage);
+router.post("/asu", authGenerus_middleware_1.default, message_controller_1.default.sendMessage);
 // GET CHAT BY CONVERSATION
 router.get("/messages/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.getConversationChat);
 // MARK AS READ
 router.post("/messages/read", authGenerus_middleware_1.default, message_controller_1.default.markAsRead);
 router.post("/conversations/private", authGenerus_middleware_1.default, message_controller_1.default.createPrivateConversation);
+router.get("/generus-mumi", authGenerus_middleware_1.default, generus_controler_1.default.findAllByLoginGenerus);
 // CREATE GROUP
 router.post("/conversations/group", authGenerus_middleware_1.default, message_controller_1.default.createGroup);
+router.delete("/conversations/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.deleteConversation);
 // GET GROUP DETAIL
 router.get("/conversations/group/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.getGroupDetail);
-router.get("/conversation/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.getConversationById);
+router.get("/conversations/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.getConversationById);
 // UPDATE GROUP
 router.patch("/conversations/group/:conversationId", authGenerus_middleware_1.default, message_controller_1.default.updateGroup);
 // DELETE GROUP

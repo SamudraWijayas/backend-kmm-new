@@ -7,6 +7,8 @@ import path from "path";
 import errorMiddleware from "./middleware/error.middleware";
 import maintenanceMiddleware from "./middleware/maintenance.middleware";
 import { getMaintenance } from "./controllers/settingController";
+import http from "http";
+import { initSocket } from "./utils/socket";
 
 async function init() {
   try {
@@ -33,8 +35,13 @@ async function init() {
     app.use(errorMiddleware.serverRoute());
     app.use(errorMiddleware.serverError());
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server is running at http://0.0.0.0:${PORT}`);
+    const server = http.createServer(app);
+
+    // init socket
+    initSocket(server);
+
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);
     });
   } catch (error) {
     console.log(error);
@@ -46,11 +53,11 @@ init();
 // Routes
 
 // Jalankan koneksi database dulu baru start server
-(async () => {
-  try {
-    await connect(); // prisma.$connect()
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
-  }
-})();
+// (async () => {
+//   try {
+//     await connect(); // prisma.$connect()
+//   } catch (error) {
+//     console.error("❌ Failed to start server:", error);
+//     process.exit(1);
+//   }
+// })();

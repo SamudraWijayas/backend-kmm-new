@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = require("../libs/prisma");
 const response_1 = __importDefault(require("../utils/response"));
+const socket_1 = require("../utils/socket");
 exports.default = {
     chatList(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -60,6 +61,15 @@ exports.default = {
                         messages: {
                             orderBy: { createdAt: "desc" },
                             take: 1,
+                            include: {
+                                sender: {
+                                    select: {
+                                        id: true,
+                                        nama: true,
+                                        foto: true,
+                                    },
+                                },
+                            },
                         },
                     },
                     orderBy: {
@@ -83,6 +93,9 @@ exports.default = {
                             },
                         },
                     });
+                    const lastMessageContent = (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.content) || null;
+                    const lastMessageCreatedAt = (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.createdAt) || conv.createdAt;
+                    const lastMessageSender = (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.sender) || null;
                     // PERSONAL CHAT
                     if (!conv.isGroup) {
                         const otherUser = conv.participants
@@ -93,6 +106,7 @@ exports.default = {
                             conversationId: conv.id,
                             user: otherUser,
                             lastMessage: (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.content) || null,
+                            lastMessageSender,
                             createdAt: (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.createdAt) || conv.createdAt,
                             unreadCount,
                         };
@@ -104,10 +118,14 @@ exports.default = {
                         name: conv.name,
                         image: conv.image,
                         lastMessage: (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.content) || null,
+                        lastMessageSender,
                         createdAt: (lastMessage === null || lastMessage === void 0 ? void 0 : lastMessage.createdAt) || conv.createdAt,
                         unreadCount,
                     };
                 })));
+                (0, socket_1.emitToUser)(userId, "chat_list_synced", {
+                    syncedAt: new Date(),
+                });
                 return response_1.default.success(res, chatList, "✅ Chat list berhasil diambil");
             }
             catch (error) {

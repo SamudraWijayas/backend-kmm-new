@@ -82,6 +82,12 @@ exports.default = {
             data: error,
         });
     },
+    badRequest(res, message = "Bad request", data = null) {
+        return res.status(400).json({
+            meta: { status: 400, message },
+            data,
+        });
+    },
     notFound(res, message = "not found") {
         res.status(404).json({
             meta: { status: 404, message },

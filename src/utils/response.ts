@@ -64,6 +64,13 @@ export default {
     });
   },
 
+  badRequest(res: Response, message: string = "Bad request", data: any = null) {
+    return res.status(400).json({
+      meta: { status: 400, message },
+      data,
+    });
+  },
+
   notFound(res: Response, message: string = "not found") {
     res.status(404).json({
       meta: { status: 404, message },
@@ -82,7 +89,7 @@ export default {
     res: Response,
     data: any[],
     pagination: Pagination,
-    message: string
+    message: string,
   ) {
     res.status(200).json({
       meta: { status: 200, message },

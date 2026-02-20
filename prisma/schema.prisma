@@ -200,6 +200,9 @@ model Mumi {
   conversationParticipants ConversationParticipant[]
 
   messageReads MessageRead[]
+  
+  pushSubscriptions PushSubscription[]
+  notifications     Notification[]
 
   /* ============================================== */
 
@@ -212,7 +215,7 @@ model Message {
   id             Int @id @default(autoincrement())
 
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
 
   senderId Int
@@ -233,7 +236,7 @@ model MessageRead {
   messageId Int
   mumiId    Int
 
-  message Message @relation(fields: [messageId], references: [id])
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   mumi    Mumi    @relation(fields: [mumiId], references: [id])
 
   readAt DateTime @default(now())
@@ -251,7 +254,7 @@ model Attachment {
   fileType  String
   fileSize  Int?
 
-  message Message @relation(fields: [messageId], references: [id])
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 }
 
 
@@ -283,7 +286,7 @@ model ConversationParticipant {
 
   mumiId         Int
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   mumi         Mumi        @relation(fields: [mumiId], references: [id])
 
@@ -493,6 +496,37 @@ model CatatanWaliKelas {
 
   @@unique([caberawitId, semester])
 }
+
+
+
+model PushSubscription {
+  id        Int    @id @default(autoincrement())
+  mumiId    Int
+  endpoint  String @unique
+  p256dh    String
+  auth      String
+
+  mumi      Mumi   @relation(fields: [mumiId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  mumiId    Int
+  title     String
+  body      String
+  type      NotificationType
+  url       String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  mumi      Mumi     @relation(fields: [mumiId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  MESSAGE
+  KEGIATAN
+}
+
 
 
 

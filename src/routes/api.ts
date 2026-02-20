@@ -918,6 +918,7 @@ router.put(
   authGenerus,
   authGenerusController.updateProfile,
 );
+router.put("/auth-generus/update-password", authGenerus, authGenerusController.updatePassword);
 
 // ambil profil GENERUS
 router.get("/auth-generus/me", authGenerus, authGenerusController.meGenerus);
@@ -952,6 +953,7 @@ router.get("/chat/list", authGenerus, chatController.chatList);
 
 // message
 router.post("/messages", authGenerus, messageController.sendMessage);
+router.post("/asu", authGenerus, messageController.sendMessage);
 
 // GET CHAT BY CONVERSATION
 router.get(
@@ -969,8 +971,19 @@ router.post(
   messageController.createPrivateConversation,
 );
 
+router.get(
+  "/generus-mumi",
+  authGenerus,
+  generusController.findAllByLoginGenerus,
+);
+
 // CREATE GROUP
 router.post("/conversations/group", authGenerus, messageController.createGroup);
+router.delete(
+  "/conversations/:conversationId",
+  authGenerus,
+  messageController.deleteConversation,
+);
 
 // GET GROUP DETAIL
 router.get(
@@ -980,7 +993,7 @@ router.get(
 );
 
 router.get(
-  "/conversation/:conversationId",
+  "/conversations/:conversationId",
   authGenerus,
   messageController.getConversationById,
 );

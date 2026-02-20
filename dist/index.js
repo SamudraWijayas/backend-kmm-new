@@ -21,6 +21,8 @@ const path_1 = __importDefault(require("path"));
 const error_middleware_1 = __importDefault(require("./middleware/error.middleware"));
 const maintenance_middleware_1 = __importDefault(require("./middleware/maintenance.middleware"));
 const settingController_1 = require("./controllers/settingController");
+const http_1 = __importDefault(require("http"));
+const socket_1 = require("./utils/socket");
 function init() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -41,8 +43,11 @@ function init() {
             app.use("/api", api_1.default);
             app.use(error_middleware_1.default.serverRoute());
             app.use(error_middleware_1.default.serverError());
-            app.listen(PORT, "0.0.0.0", () => {
-                console.log(`🚀 Server is running at http://0.0.0.0:${PORT}`);
+            const server = http_1.default.createServer(app);
+            // init socket
+            (0, socket_1.initSocket)(server);
+            server.listen(PORT, "0.0.0.0", () => {
+                console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);
             });
         }
         catch (error) {
@@ -53,12 +58,11 @@ function init() {
 init();
 // Routes
 // Jalankan koneksi database dulu baru start server
-(() => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        yield (0, prisma_1.connect)(); // prisma.$connect()
-    }
-    catch (error) {
-        console.error("❌ Failed to start server:", error);
-        process.exit(1);
-    }
-}))();
+// (async () => {
+//   try {
+//     await connect(); // prisma.$connect()
+//   } catch (error) {
+//     console.error("❌ Failed to start server:", error);
+//     process.exit(1);
+//   }
+// })();

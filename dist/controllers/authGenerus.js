@@ -50,6 +50,7 @@ const response_1 = __importDefault(require("../utils/response"));
 const Yup = __importStar(require("yup"));
 const jwt_1 = require("../utils/jwt"); // pastikan ini ada
 const encryption_1 = require("../utils/encryption");
+const user_model_1 = require("../models/user.model");
 // ✅ Validasi login
 const loginDTO = Yup.object({
     identifier: Yup.string().required("Nama wajib diisi"),
@@ -60,11 +61,12 @@ const validatePassword = Yup.string()
     .min(6, "Password minimal 6 karakter")
     .test("at-least-one-uppercase-letter", "Password harus mengandung minimal 1 huruf besar", (value) => !!value && /[A-Z]/.test(value))
     .test("at-least-one-number", "Password harus mengandung minimal 1 angka", (value) => !!value && /\d/.test(value));
+const validateConfirmPassword = Yup.string()
+    .required()
+    .oneOf([Yup.ref("password"), ""], "Password tidak sama");
 const setPasswordFirstTimeDTO = Yup.object({
     password: validatePassword,
-    confirmPassword: Yup.string()
-        .required("Konfirmasi password wajib diisi")
-        .oneOf([Yup.ref("password")], "Konfirmasi password tidak sama"),
+    confirmPassword: validateConfirmPassword,
 });
 exports.default = {
     // 🔐 Login Generus
@@ -164,7 +166,7 @@ exports.default = {
                 if (!userId) {
                     return response_1.default.unauthorized(res, "Unauthorized");
                 }
-                yield setPasswordFirstTimeDTO.validate(req.body, { abortEarly: false });
+                yield setPasswordFirstTimeDTO.validate(req.body);
                 const { password } = req.body;
                 const generus = yield prisma_1.prisma.mumi.findUnique({
                     where: { id: userId },
@@ -190,11 +192,41 @@ exports.default = {
                 response_1.default.success(res, null, "Password berhasil disetel");
             }
             catch (error) {
-                if (error.name === "ValidationError") {
-                    return response_1.default.notFound(res, error.errors);
-                }
-                console.error("SET PASSWORD FIRST TIME ERROR:", error);
                 response_1.default.error(res, error, "Gagal menyetel password");
+            }
+        });
+    },
+    updatePassword(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+                if (!userId) {
+                    return response_1.default.unauthorized(res, "Unauthorized");
+                }
+                const { oldPassword, password, confirmPassword } = req.body;
+                yield user_model_1.userUpdatePasswordDTO.validate({
+                    oldPassword,
+                    password,
+                    confirmPassword,
+                });
+                const mumi = yield prisma_1.prisma.mumi.findUnique({
+                    where: { id: userId },
+                });
+                if (!mumi) {
+                    return response_1.default.notFound(res, "Mumi not found");
+                }
+                if (mumi.password !== (0, encryption_1.encrypt)(oldPassword)) {
+                    return response_1.default.badRequest(res, "Password lama salah");
+                }
+                const updatedUser = yield prisma_1.prisma.mumi.update({
+                    where: { id: userId },
+                    data: { password: (0, encryption_1.encrypt)(password) },
+                });
+                return response_1.default.success(res, updatedUser, "Password berhasil diubah");
+            }
+            catch (error) {
+                return response_1.default.error(res, error, "Gagal ubah password");
             }
         });
     },

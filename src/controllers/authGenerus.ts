@@ -5,6 +5,7 @@ import { IReqMumi } from "../utils/interfaces";
 import * as Yup from "yup";
 import { generateMumiToken } from "../utils/jwt"; // pastikan ini ada
 import { encrypt } from "../utils/encryption";
+import { userUpdatePasswordDTO } from "../models/user.model";
 
 // ✅ Validasi login
 const loginDTO = Yup.object({
@@ -26,11 +27,13 @@ const validatePassword = Yup.string()
     (value) => !!value && /\d/.test(value),
   );
 
+const validateConfirmPassword = Yup.string()
+  .required()
+  .oneOf([Yup.ref("password"), ""], "Password tidak sama");
+
 const setPasswordFirstTimeDTO = Yup.object({
   password: validatePassword,
-  confirmPassword: Yup.string()
-    .required("Konfirmasi password wajib diisi")
-    .oneOf([Yup.ref("password")], "Konfirmasi password tidak sama"),
+  confirmPassword: validateConfirmPassword,
 });
 
 export default {
@@ -173,7 +176,7 @@ export default {
         return response.unauthorized(res, "Unauthorized");
       }
 
-      await setPasswordFirstTimeDTO.validate(req.body, { abortEarly: false });
+      await setPasswordFirstTimeDTO.validate(req.body);
 
       const { password } = req.body;
 
@@ -206,13 +209,46 @@ export default {
       });
 
       response.success(res, null, "Password berhasil disetel");
-    } catch (error: any) {
-      if (error.name === "ValidationError") {
-        return response.notFound(res, error.errors);
+    } catch (error) {
+      response.error(res, error, "Gagal menyetel password");
+    }
+  },
+  async updatePassword(req: IReqMumi, res: Response) {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return response.unauthorized(res, "Unauthorized");
       }
 
-      console.error("SET PASSWORD FIRST TIME ERROR:", error);
-      response.error(res, error, "Gagal menyetel password");
+      const { oldPassword, password, confirmPassword } = req.body;
+
+      await userUpdatePasswordDTO.validate({
+        oldPassword,
+        password,
+        confirmPassword,
+      });
+
+      const mumi = await prisma.mumi.findUnique({
+        where: { id: userId },
+      });
+
+      if (!mumi) {
+        return response.notFound(res, "Mumi not found");
+      }
+
+      if (mumi.password !== encrypt(oldPassword)) {
+        return response.badRequest(res, "Password lama salah");
+      }
+
+      const updatedUser = await prisma.mumi.update({
+        where: { id: userId },
+        data: { password: encrypt(password) },
+      });
+
+      return response.success(res, updatedUser, "Password berhasil diubah");
+    } catch (error) {
+      return response.error(res, error, "Gagal ubah password");
     }
   },
   async meGenerus(req: IReqMumi, res: Response) {

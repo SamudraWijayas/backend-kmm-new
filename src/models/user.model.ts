@@ -7,7 +7,7 @@ const validatePassword = Yup.string()
   .min(6, "Password must be at least 6 characters")
   .test(
     "at-least-one-uppercase-letter",
-    "Contains at least one uppercase letter",
+    "Password harus mengandung minimal 1 huruf besar",
     (value) => {
       if (!value) return false;
       const regex = /^(?=.*[A-Z])/;
@@ -16,7 +16,7 @@ const validatePassword = Yup.string()
   )
   .test(
     "at-least-one-number",
-    "Contains at least one uppercase letter",
+    "Password harus mengandung minimal 1 huruf besar",
     (value) => {
       if (!value) return false;
       const regex = /^(?=.*\d)/;

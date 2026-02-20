@@ -48,9 +48,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = require("../libs/prisma");
 const response_1 = __importDefault(require("../utils/response"));
 const Yup = __importStar(require("yup"));
+const socket_1 = require("../utils/socket");
 const messageDTO = Yup.object({
     content: Yup.string().nullable(),
-    conversationId: Yup.number().required(),
+    conversationId: Yup.string().required(),
 });
 exports.default = {
     // ===============================
@@ -66,7 +67,6 @@ exports.default = {
                 const senderId = req.user.id;
                 const { content, conversationId, attachments } = req.body;
                 yield messageDTO.validate({ content, conversationId });
-                // cek apakah user termasuk participant conversation
                 const isParticipant = yield prisma_1.prisma.conversationParticipant.findFirst({
                     where: {
                         conversationId,
@@ -97,11 +97,12 @@ exports.default = {
                         attachments: true,
                     },
                 });
-                // update updatedAt conversation (biar bisa sorting last chat)
                 yield prisma_1.prisma.conversation.update({
                     where: { id: conversationId },
                     data: { updatedAt: new Date() },
                 });
+                // 🔥 REALTIME MESSAGE
+                (0, socket_1.emitToConversation)(conversationId, "receive_message", message);
                 return response_1.default.success(res, message, "✅ Pesan berhasil dikirim");
             }
             catch (error) {
@@ -121,10 +122,9 @@ exports.default = {
                 if (!userId) {
                     return response_1.default.unauthorized(res, "Unauthorized");
                 }
-                // pastikan user participant
                 const isParticipant = yield prisma_1.prisma.conversationParticipant.findFirst({
                     where: {
-                        conversationId: conversationId,
+                        conversationId,
                         mumiId: userId,
                     },
                 });
@@ -132,17 +132,11 @@ exports.default = {
                     return response_1.default.unauthorized(res, "Bukan anggota conversation");
                 }
                 const messages = yield prisma_1.prisma.message.findMany({
-                    where: {
-                        conversationId: conversationId,
-                    },
+                    where: { conversationId: String(conversationId) },
                     include: {
                         sender: true,
                         attachments: true,
-                        reads: {
-                            select: {
-                                mumiId: true,
-                            },
-                        },
+                        reads: { select: { mumiId: true } },
                     },
                     orderBy: { createdAt: "asc" },
                 });
@@ -170,7 +164,7 @@ exports.default = {
                 }
                 const messages = yield prisma_1.prisma.message.findMany({
                     where: {
-                        conversationId,
+                        conversationId: String(conversationId),
                         senderId: { not: userId },
                     },
                     select: { id: true },
@@ -181,6 +175,12 @@ exports.default = {
                         mumiId: userId,
                     })),
                     skipDuplicates: true,
+                });
+                // 🔥 REALTIME READ STATUS
+                (0, socket_1.emitToConversation)(conversationId, "messages_read", {
+                    conversationId,
+                    userId,
+                    readAt: new Date(),
                 });
                 return response_1.default.success(res, null, "Pesan sudah dibaca");
             }
@@ -207,28 +207,18 @@ exports.default = {
                 if (targetUserId === userId) {
                     return response_1.default.error(res, null, "Tidak bisa chat dengan diri sendiri");
                 }
-                // cek apakah sudah ada private chat antara 2 user ini
                 const existingConversation = yield prisma_1.prisma.conversation.findFirst({
                     where: {
                         isGroup: false,
-                        participants: {
-                            some: { mumiId: userId },
-                        },
-                        AND: {
-                            participants: {
-                                some: { mumiId: targetUserId },
-                            },
-                        },
+                        participants: { some: { mumiId: userId } },
+                        AND: { participants: { some: { mumiId: targetUserId } } },
                     },
-                    include: {
-                        participants: true,
-                    },
+                    include: { participants: true },
                 });
                 if (existingConversation &&
                     existingConversation.participants.length === 2) {
                     return response_1.default.success(res, existingConversation, "Private conversation sudah ada");
                 }
-                // buat conversation baru
                 const conversation = yield prisma_1.prisma.conversation.create({
                     data: {
                         isGroup: false,
@@ -236,10 +226,10 @@ exports.default = {
                             create: [{ mumiId: userId }, { mumiId: targetUserId }],
                         },
                     },
-                    include: {
-                        participants: true,
-                    },
+                    include: { participants: true },
                 });
+                // 🔥 REALTIME NEW CONVERSATION
+                (0, socket_1.emitToUser)(targetUserId, "new_conversation", conversation);
                 return response_1.default.success(res, conversation, "Private conversation berhasil dibuat");
             }
             catch (error) {
@@ -270,15 +260,15 @@ exports.default = {
                         participants: {
                             create: [
                                 { mumiId: creatorId },
-                                ...((memberIds === null || memberIds === void 0 ? void 0 : memberIds.map((id) => ({
-                                    mumiId: id,
-                                }))) || []),
+                                ...((memberIds === null || memberIds === void 0 ? void 0 : memberIds.map((id) => ({ mumiId: id }))) || []),
                             ],
                         },
                     },
-                    include: {
-                        participants: true,
-                    },
+                    include: { participants: true },
+                });
+                // 🔥 REALTIME GROUP CREATED
+                conversation.participants.forEach((p) => {
+                    (0, socket_1.emitToUser)(p.mumiId, "new_group", conversation);
                 });
                 return response_1.default.success(res, conversation, "✅ Group berhasil dibuat");
             }
@@ -299,7 +289,7 @@ exports.default = {
                 // pastikan user participant
                 const isParticipant = yield prisma_1.prisma.conversationParticipant.findFirst({
                     where: {
-                        conversationId,
+                        conversationId: String(conversationId),
                         mumiId: userId,
                     },
                 });
@@ -451,6 +441,53 @@ exports.default = {
             }
             catch (error) {
                 return response_1.default.error(res, error, "Gagal hapus member");
+            }
+        });
+    },
+    // ===============================
+    // 🗑 DELETE CONVERSATION
+    // ===============================
+    deleteConversation(req, res) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a;
+            try {
+                if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id)) {
+                    return response_1.default.unauthorized(res, "Unauthorized");
+                }
+                const userId = req.user.id;
+                const { conversationId } = req.params;
+                if (!conversationId) {
+                    return response_1.default.notFound(res, "conversationId wajib");
+                }
+                // Pastikan user participant
+                const participant = yield prisma_1.prisma.conversationParticipant.findFirst({
+                    where: {
+                        conversationId,
+                        mumiId: userId,
+                    },
+                });
+                if (!participant) {
+                    return response_1.default.unauthorized(res, "Bukan anggota conversation");
+                }
+                // Ambil semua participant sebelum dihapus (buat realtime emit)
+                const participants = yield prisma_1.prisma.conversationParticipant.findMany({
+                    where: { conversationId },
+                    select: { mumiId: true },
+                });
+                // Hapus conversation (cascade harus aktif di schema)
+                yield prisma_1.prisma.conversation.delete({
+                    where: { id: conversationId },
+                });
+                // 🔥 REALTIME EMIT KE SEMUA PARTICIPANT
+                participants.forEach((p) => {
+                    (0, socket_1.emitToUser)(p.mumiId, "conversation_deleted", {
+                        conversationId,
+                    });
+                });
+                return response_1.default.success(res, null, "Conversation berhasil dihapus");
+            }
+            catch (error) {
+                return response_1.default.error(res, error, "Gagal menghapus conversation");
             }
         });
     },

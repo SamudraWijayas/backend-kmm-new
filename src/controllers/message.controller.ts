@@ -1,19 +1,20 @@
 import { Response } from "express";
 import { prisma } from "../libs/prisma";
 import response from "../utils/response";
-import { IReqUser } from "../utils/interfaces";
+import { IReqMumi } from "../utils/interfaces";
 import * as Yup from "yup";
+import { emitToConversation, emitToUser } from "../utils/socket";
 
 const messageDTO = Yup.object({
   content: Yup.string().nullable(),
-  conversationId: Yup.number().required(),
+  conversationId: Yup.string().required(),
 });
 
 export default {
   // ===============================
   // 🟢 SEND MESSAGE
   // ===============================
-  async sendMessage(req: IReqUser, res: Response) {
+  async sendMessage(req: IReqMumi, res: Response) {
     try {
       if (!req.user?.id) {
         return response.unauthorized(res, "User tidak terautentikasi");
@@ -24,7 +25,6 @@ export default {
 
       await messageDTO.validate({ content, conversationId });
 
-      // cek apakah user termasuk participant conversation
       const isParticipant = await prisma.conversationParticipant.findFirst({
         where: {
           conversationId,
@@ -58,11 +58,13 @@ export default {
         },
       });
 
-      // update updatedAt conversation (biar bisa sorting last chat)
       await prisma.conversation.update({
         where: { id: conversationId },
         data: { updatedAt: new Date() },
       });
+
+      // 🔥 REALTIME MESSAGE
+      emitToConversation(conversationId, "receive_message", message);
 
       return response.success(res, message, "✅ Pesan berhasil dikirim");
     } catch (error) {
@@ -73,7 +75,7 @@ export default {
   // ===============================
   // 🔍 GET CHAT BY CONVERSATION
   // ===============================
-  async getConversationChat(req: IReqUser, res: Response) {
+  async getConversationChat(req: IReqMumi, res: Response) {
     try {
       const userId = req.user?.id;
       const { conversationId } = req.params;
@@ -82,10 +84,9 @@ export default {
         return response.unauthorized(res, "Unauthorized");
       }
 
-      // pastikan user participant
       const isParticipant = await prisma.conversationParticipant.findFirst({
         where: {
-          conversationId: conversationId,
+          conversationId,
           mumiId: userId,
         },
       });
@@ -95,17 +96,11 @@ export default {
       }
 
       const messages = await prisma.message.findMany({
-        where: {
-          conversationId: conversationId,
-        },
+        where: { conversationId: String(conversationId) },
         include: {
           sender: true,
           attachments: true,
-          reads: {
-            select: {
-              mumiId: true,
-            },
-          },
+          reads: { select: { mumiId: true } },
         },
         orderBy: { createdAt: "asc" },
       });
@@ -119,7 +114,7 @@ export default {
   // ===============================
   // ✅ MARK AS READ
   // ===============================
-  async markAsRead(req: IReqUser, res: Response) {
+  async markAsRead(req: IReqMumi, res: Response) {
     try {
       if (!req.user?.id) {
         return response.unauthorized(res, "Unauthorized");
@@ -134,7 +129,7 @@ export default {
 
       const messages = await prisma.message.findMany({
         where: {
-          conversationId,
+          conversationId: String(conversationId),
           senderId: { not: userId },
         },
         select: { id: true },
@@ -148,6 +143,13 @@ export default {
         skipDuplicates: true,
       });
 
+      // 🔥 REALTIME READ STATUS
+      emitToConversation(conversationId, "messages_read", {
+        conversationId,
+        userId,
+        readAt: new Date(),
+      });
+
       return response.success(res, null, "Pesan sudah dibaca");
     } catch (error) {
       return response.error(res, error, "Gagal update read status");
@@ -157,7 +159,7 @@ export default {
   // ===============================
   // 🟣 CREATE PRIVATE CONVERSATION
   // ===============================
-  async createPrivateConversation(req: IReqUser, res: Response) {
+  async createPrivateConversation(req: IReqMumi, res: Response) {
     try {
       if (!req.user?.id) {
         return response.unauthorized(res, "Unauthorized");
@@ -174,22 +176,13 @@ export default {
         return response.error(res, null, "Tidak bisa chat dengan diri sendiri");
       }
 
-      // cek apakah sudah ada private chat antara 2 user ini
       const existingConversation = await prisma.conversation.findFirst({
         where: {
           isGroup: false,
-          participants: {
-            some: { mumiId: userId },
-          },
-          AND: {
-            participants: {
-              some: { mumiId: targetUserId },
-            },
-          },
+          participants: { some: { mumiId: userId } },
+          AND: { participants: { some: { mumiId: targetUserId } } },
         },
-        include: {
-          participants: true,
-        },
+        include: { participants: true },
       });
 
       if (
@@ -203,7 +196,6 @@ export default {
         );
       }
 
-      // buat conversation baru
       const conversation = await prisma.conversation.create({
         data: {
           isGroup: false,
@@ -211,10 +203,11 @@ export default {
             create: [{ mumiId: userId }, { mumiId: targetUserId }],
           },
         },
-        include: {
-          participants: true,
-        },
+        include: { participants: true },
       });
+
+      // 🔥 REALTIME NEW CONVERSATION
+      emitToUser(targetUserId, "new_conversation", conversation);
 
       return response.success(
         res,
@@ -227,14 +220,13 @@ export default {
   },
 
   //
-  async createGroup(req: IReqUser, res: Response) {
+  async createGroup(req: IReqMumi, res: Response) {
     try {
       if (!req.user?.id) {
         return response.unauthorized(res, "Unauthorized");
       }
 
       const { name, description, memberIds, image } = req.body;
-
       if (!name) {
         return response.notFound(res, "Nama group wajib diisi");
       }
@@ -251,15 +243,16 @@ export default {
           participants: {
             create: [
               { mumiId: creatorId },
-              ...(memberIds?.map((id: number) => ({
-                mumiId: id,
-              })) || []),
+              ...(memberIds?.map((id: number) => ({ mumiId: id })) || []),
             ],
           },
         },
-        include: {
-          participants: true,
-        },
+        include: { participants: true },
+      });
+
+      // 🔥 REALTIME GROUP CREATED
+      conversation.participants.forEach((p) => {
+        emitToUser(p.mumiId, "new_group", conversation);
       });
 
       return response.success(res, conversation, "✅ Group berhasil dibuat");
@@ -268,7 +261,7 @@ export default {
     }
   },
 
-  async getConversationById(req: IReqUser, res: Response) {
+  async getConversationById(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
       const userId = req.user?.id;
@@ -280,7 +273,7 @@ export default {
       // pastikan user participant
       const isParticipant = await prisma.conversationParticipant.findFirst({
         where: {
-          conversationId,
+          conversationId: String(conversationId),
           mumiId: userId,
         },
       });
@@ -315,7 +308,7 @@ export default {
     }
   },
 
-  async getGroupDetail(req: IReqUser, res: Response) {
+  async getGroupDetail(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
 
@@ -343,7 +336,7 @@ export default {
     }
   },
 
-  async updateGroup(req: IReqUser, res: Response) {
+  async updateGroup(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
       const { name, description, image } = req.body;
@@ -363,7 +356,7 @@ export default {
     }
   },
 
-  async deleteGroup(req: IReqUser, res: Response) {
+  async deleteGroup(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
       const userId = req.user?.id;
@@ -386,7 +379,7 @@ export default {
     }
   },
 
-  async leaveGroup(req: IReqUser, res: Response) {
+  async leaveGroup(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
       const userId = req.user?.id;
@@ -406,7 +399,7 @@ export default {
     }
   },
 
-  async addMember(req: IReqUser, res: Response) {
+  async addMember(req: IReqMumi, res: Response) {
     try {
       const { conversationId } = req.params;
       const { mumiId } = req.body;
@@ -423,7 +416,7 @@ export default {
       return response.error(res, error, "Gagal tambah member");
     }
   },
-  async removeMember(req: IReqUser, res: Response) {
+  async removeMember(req: IReqMumi, res: Response) {
     try {
       const { conversationId, mumiId } = req.params;
 
@@ -439,6 +432,57 @@ export default {
       return response.success(res, null, "Member dihapus");
     } catch (error) {
       return response.error(res, error, "Gagal hapus member");
+    }
+  },
+  // ===============================
+  // 🗑 DELETE CONVERSATION
+  // ===============================
+  async deleteConversation(req: IReqMumi, res: Response) {
+    try {
+      if (!req.user?.id) {
+        return response.unauthorized(res, "Unauthorized");
+      }
+
+      const userId = req.user.id;
+      const { conversationId } = req.params;
+
+      if (!conversationId) {
+        return response.notFound(res, "conversationId wajib");
+      }
+
+      // Pastikan user participant
+      const participant = await prisma.conversationParticipant.findFirst({
+        where: {
+          conversationId,
+          mumiId: userId,
+        },
+      });
+
+      if (!participant) {
+        return response.unauthorized(res, "Bukan anggota conversation");
+      }
+
+      // Ambil semua participant sebelum dihapus (buat realtime emit)
+      const participants = await prisma.conversationParticipant.findMany({
+        where: { conversationId },
+        select: { mumiId: true },
+      });
+
+      // Hapus conversation (cascade harus aktif di schema)
+      await prisma.conversation.delete({
+        where: { id: conversationId },
+      });
+
+      // 🔥 REALTIME EMIT KE SEMUA PARTICIPANT
+      participants.forEach((p) => {
+        emitToUser(p.mumiId, "conversation_deleted", {
+          conversationId,
+        });
+      });
+
+      return response.success(res, null, "Conversation berhasil dihapus");
+    } catch (error) {
+      return response.error(res, error, "Gagal menghapus conversation");
     }
   },
 };

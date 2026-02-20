@@ -2,6 +2,7 @@ import { Response } from "express";
 import { prisma } from "../libs/prisma";
 import response from "../utils/response";
 import { IReqUser } from "../utils/interfaces";
+import { emitToUser } from "../utils/socket";
 
 export default {
   async chatList(req: IReqUser, res: Response) {
@@ -52,6 +53,15 @@ export default {
           messages: {
             orderBy: { createdAt: "desc" },
             take: 1,
+            include: {
+              sender: {
+                select: {
+                  id: true,
+                  nama: true,
+                  foto: true,
+                },
+              },
+            },
           },
         },
         orderBy: {
@@ -79,6 +89,10 @@ export default {
             },
           });
 
+          const lastMessageContent = lastMessage?.content || null;
+          const lastMessageCreatedAt = lastMessage?.createdAt || conv.createdAt;
+          const lastMessageSender = lastMessage?.sender || null;
+
           // PERSONAL CHAT
           if (!conv.isGroup) {
             const otherUser = conv.participants
@@ -90,6 +104,7 @@ export default {
               conversationId: conv.id,
               user: otherUser,
               lastMessage: lastMessage?.content || null,
+              lastMessageSender,
               createdAt: lastMessage?.createdAt || conv.createdAt,
               unreadCount,
             };
@@ -102,11 +117,16 @@ export default {
             name: conv.name,
             image: conv.image,
             lastMessage: lastMessage?.content || null,
+            lastMessageSender,
             createdAt: lastMessage?.createdAt || conv.createdAt,
             unreadCount,
           };
         }),
       );
+
+      emitToUser(userId, "chat_list_synced", {
+        syncedAt: new Date(),
+      });
 
       return response.success(res, chatList, "✅ Chat list berhasil diambil");
     } catch (error) {
