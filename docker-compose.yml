@@ -54,7 +54,6 @@ services:
       - uploads:/app/uploads
     networks:
       - backend-network
-    command: sh -c "npx prisma migrate deploy && node dist/index.js"
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
